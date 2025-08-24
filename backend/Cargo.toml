@@ -6,5 +6,7 @@ edition = "2024"
 [dependencies]
 chrono = "0.4.41"
 rust-mc-status = "1.1.1"
+serde = "1.0.219"
+serde_yaml = "0.9.34"
 sqlite = "0.37.0"
 tokio = "1.47.1"

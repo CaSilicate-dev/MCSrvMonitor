@@ -1,0 +1,3 @@
+database_filename: "history.db"
+interval_sec: 5
+server_addr: "server.fts427.top:25565"

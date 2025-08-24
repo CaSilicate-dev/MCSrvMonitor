@@ -2,9 +2,22 @@ use rust_mc_status::{McClient, ServerEdition, ServerData};
 use sqlite;
 use chrono::Utc;
 use tokio::time::{sleep,Duration};
+use serde::Deserialize;
+use std::fs;
 
-fn record(ts: i64,lc: i32,pl: i32){
-    let connection = sqlite::open("history.db").unwrap();
+#[derive(Deserialize)]
+struct Config{
+    database_filename: String,
+    interval_sec: u32,
+    server_addr: String,
+}
+fn load_config() -> Config{
+    let contents = fs::read_to_string("config.yaml").unwrap();
+    let config: Config = serde_yaml::from_str(&contents).unwrap();
+    return config;
+}
+fn record(ts: i64,lc: i32,pl: i32, filename: String){
+    let connection = sqlite::open(filename).unwrap();
     let _ = connection.execute(format!("INSERT INTO mcserver (timestamp, latency, players)
     VALUES ({},{},{})",ts,lc,pl));
 }
@@ -12,8 +25,8 @@ fn get_time() -> i64{
     let ctimestamp = Utc::now().timestamp();
     return ctimestamp
 }
-async fn get_data(client: &McClient) -> (i32, i32){
-    let status = client.ping("server.fts427.top",ServerEdition::Java).await;
+async fn get_data(client: &McClient,addr: String) -> (i32, i32){
+    let status = client.ping(addr.as_str(),ServerEdition::Java).await;
     let latency;
     let players;
     match status{
@@ -38,13 +51,14 @@ async fn get_data(client: &McClient) -> (i32, i32){
 }
 #[tokio::main]
 async fn main() {
+    let conf = load_config();
     let client = McClient::new();
     loop{
         let ct = get_time();
-        if ct % 5 == 0 {
-            let (l,p) = get_data(&client).await;
-            record(ct,l,p);
-            sleep(Duration::from_secs(1)).await;
+        if ct % (conf.interval_sec as i64) == 0 {
+            let (l,p) = get_data(&client, conf.server_addr.clone()).await;
+            record(ct,l,p, conf.database_filename.clone());
+            sleep(Duration::from_millis(1000)).await;
         }
         sleep(Duration::from_millis(500)).await;
     }

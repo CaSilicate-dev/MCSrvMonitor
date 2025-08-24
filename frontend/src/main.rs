@@ -1,14 +1,29 @@
 use rusqlite::Connection;
 use serde_json;
+use serde_yaml;
 use std::fs;
+use serde::Deserialize;
 use rocket_dyn_templates::{Template, context};
-
+use rocket::config::{Config};
 const LENGTH:usize = 100;
+
+#[derive(Deserialize)]
+struct ConfigData{
+    database_filename: String,
+    port: u32,
+    addr: String,
+}
 
 #[macro_use] extern crate rocket;
 
-fn get_record() -> ([i64; LENGTH], [i32; LENGTH], [i32; LENGTH]){
-    let conn = Connection::open("history.db").unwrap();
+fn load_config() -> ConfigData{
+    let contents = fs::read_to_string("config.yaml").unwrap();
+    let config: ConfigData = serde_yaml::from_str(&contents).unwrap();
+    return config;
+}
+
+fn get_record(filename: String) -> ([i64; LENGTH], [i32; LENGTH], [i32; LENGTH]){
+    let conn = Connection::open(filename).unwrap();
     let mut stmt = conn.prepare(&format!("SELECT * FROM mcserver ORDER BY timestamp DESC LIMIT {}",LENGTH)).unwrap();
     
     let rows = stmt.query_map([], |row| {
@@ -44,10 +59,10 @@ fn load_lang(path: &str) -> serde_json::Value{
     let v = serde_json::from_str(&data).unwrap();
     return v;
 }
-fn generate_data() -> (String, String, String, String, String, ){
+fn generate_data(filename: String) -> (String, String, String, String, String, ){
     let lang = load_lang("assets/lang.json");
 
-    let (_, latencys, _) = get_record();
+    let (_, latencys, _) = get_record(filename);
 
     let current_latency = latencys[0];
     let current_status;
@@ -100,15 +115,23 @@ fn generate_data() -> (String, String, String, String, String, ){
 
 #[get("/data")]
 fn root_data() -> Template{
-    let (color1, status, color2, rate, verbose) = generate_data();
+    let conf = load_config();
+
+    let (color1, status, color2, rate, verbose) = generate_data(conf.database_filename);
     Template::render("index", context! {color1: color1, status: status, color2: color2, rate: rate, verbose: verbose})
 }
 
 #[rocket::main]
 async fn main(){
-    let _ = rocket::build()
+    let conf = load_config();
+    let config = Config {
+        address: conf.addr.parse().unwrap(),
+        port: conf.port as u16,
+        ..Config::default()
+    };
+    let _ = rocket::custom(config)
         .attach(Template::fairing())
         .mount("/", routes![root_data])
-        .launch().await;
+        .launch().await.unwrap();
 }
 
