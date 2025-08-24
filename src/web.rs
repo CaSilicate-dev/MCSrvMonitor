@@ -123,8 +123,8 @@ pub fn rocket(config: Arc<Config>) -> Rocket<Build> {
     .manage(config)
     .attach(Template::fairing())
     .mount(
-        "/assets",
-        FileServer::new(relative!("/assets"), Options::Missing | Options::NormalizeDirs),
+        "/assets/",
+        FileServer::new(relative!("assets/"), Options::Missing | Options::NormalizeDirs),
     )
     .mount("/", routes![root_data])
 }
