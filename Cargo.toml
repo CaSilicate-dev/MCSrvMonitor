@@ -1,0 +1,14 @@
+[package]
+name = "mcsrv_monitor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.41"
+serde = "1.0.219"
+serde_yaml = "0.9.34"
+tokio = "1.47.1"
+rocket = { version = "0.5.1", features = ["json"] }
+rocket_dyn_templates = { version = "0.2.0", features = ["handlebars"]}
+rusqlite = "0.37.0"
+rust-mc-status = "1.1.1"

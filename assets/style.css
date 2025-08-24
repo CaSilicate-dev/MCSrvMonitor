@@ -1,0 +1,75 @@
+body, html {
+    background: #212121;
+    color: #eeeeee;
+    font-family: Roboto, "Noto Sans SC", monospace;
+    margin: 0;
+    padding: 0;
+}
+
+.mdc-layout {
+    max-width: 900px;
+    margin: 32px auto 0 auto;
+    padding: 24px 24px 48px 24px;
+    background: #292929;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+
+.mdc-title {
+    color: #fff;
+    font-weight: 500;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #3f51b5;
+    padding-bottom: 8px;
+}
+
+.mdc-section {
+    margin-bottom: 32px;
+}
+
+.mdc-chip-set {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.mdc-chip {
+    display: inline-block;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 500;
+    background: #333;
+    color: #fff;
+    border: none;
+    box-shadow: none;
+    text-transform: none;
+    letter-spacing: 0.5px;
+}
+
+.mdc-chip--success {
+    background: #388e3c;
+    color: #fff;
+}
+
+.mdc-chip--warning {
+    background: #fbc02d;
+    color: #212121;
+}
+
+.mdc-chip--error {
+    background: #d32f2f;
+    color: #fff;
+}
+
+.blocks-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    line-height: 1.2;
+    font-size: 75%;
+    margin-top: 8px;
+}
+
+.block {
+    display: inline-block;
+}

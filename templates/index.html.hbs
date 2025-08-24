@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <title>Minecraft Server Uptime Monitor</title>
+        <link rel="stylesheet" href="/assets/style.css">
+    </head>
+    <body>
+        <main class="mdc-layout">
+            <h1 class="mdc-typography--headline4 mdc-title">
+                FTS427 ZHServer 服务器在线率监控器
+            </h1>
+
+            <section class="mdc-section">
+                <div class="mdc-chip-set">
+                    <span class="mdc-chip mdc-chip--success">绿色方块: 在线</span>
+                    <span class="mdc-chip mdc-chip--warning">黄色方块: 高延迟</span>
+                    <span class="mdc-chip mdc-chip--error">红色方块: 离线</span>
+                </div>
+            </section>
+
+            <section class="mdc-section">
+                <div class="mdc-typography--subtitle1">
+                    <span style="color: #eeeeee;">当前服务器状态: </span>
+                    <span style="color: {{color1}};">{{status}}</span>
+                </div>
+                <div class="mdc-typography--subtitle1">
+                    <span style="color: #eeeeee;">过去 3 天内在线率: </span>
+                    <span style="color: {{color2}};">{{rate}}</span>
+                </div>
+            </section>
+
+            <section class="mdc-section">
+                <div class="mdc-typography--body2" style="color: #eeeeee;">
+                    详细在线信息(采样间隔 30s, 取最近 8640 次采样数据, 时间从前往后):
+                </div>
+                <div class="blocks-container">
+                    {{{verbose}}}
+                </div>
+            </section>
+        </main>
+    </body>
+</html>
