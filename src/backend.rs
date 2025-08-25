@@ -20,8 +20,8 @@ fn load_config() -> Config {
             contents = r;
         }
         Err(e) => {
-            eprint!("Error: {} \n", e);
-            panic!("Failed to open essential config");
+            eprint!("Failed to open essential config: {} \n", e);
+            std::process::exit(1);
         }
     }
     let cont = serde_yaml::from_str(&contents);
@@ -31,8 +31,8 @@ fn load_config() -> Config {
             config = r;
         }
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to open essential config");
+            eprint!("Failed to open essential config: {}\n", e);
+            std::process::exit(1);
         }
     }
 
@@ -42,8 +42,8 @@ fn record(ts: i64, lc: i32, pl: i32, filename: String) {
     let connection = match Connection::open(filename) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to open database");
+            eprint!("Failed to open database: {}\n", e);
+            std::process::exit(1);
         }
     };
     connection
@@ -60,7 +60,7 @@ fn record(ts: i64, lc: i32, pl: i32, filename: String) {
     let _ = connection.execute(
         format!(
             "INSERT INTO mcserver (timestamp, latency, players)
-    VALUES ({},{},{})",
+            VALUES ({},{},{})",
             ts, lc, pl
         )
         .as_str(),

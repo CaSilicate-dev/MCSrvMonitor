@@ -4,3 +4,5 @@ addr: "0.0.0.0"
 interval_sec: 5
 server_addr: "server.fts427.top"
 length: 1000
+frontend_addr: "0.0.0.0"
+frontend_port: 8005

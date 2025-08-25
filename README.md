@@ -18,15 +18,30 @@ A high-accuracy, high-performance, minimalistic Minecraft server status monitor 
 
 - Rust 1.70+
 - SQLite3
+- Nodejs
+- Make
 
 ### Build & Run
 
 ```bash
 git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
+cd MCSrvMonitor
+# Edit config.yaml as needed
+make start
+```
+
+#### Manual build
+
+```bash
+git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
 cd MCSrvMonitor/server
+cd frontend && npm install && npm run build
+cd ../server
 # Edit config.yaml as needed
 cargo run --release
 ```
+
+
 
 ### Configuration
 
@@ -48,10 +63,16 @@ length: 1000
 - `server_addr`: Minecraft server address `(address:[port])`
 - `length`: WebUI history length
 
-### Project Structure
+## Project Structure
 
 ```text
 .
+├── assets
+│   └── lang.json
+├── Cargo.toml
+├── config.yaml
+├── docs
+│   └── README.zh-CN.md
 ├── frontend
 │   ├── package.json
 │   ├── package-lock.json
@@ -73,19 +94,15 @@ length: 1000
 │       ├── reportWebVitals.js
 │       └── setupTests.js
 ├── LICENSE
+├── Makefile
 ├── README.md
-└── server
-    ├── assets
-    │   └── lang.json
-    ├── Cargo.toml
-    ├── config.yaml
-    ├── src
-    │   ├── backend.rs
-    │   └── main.rs
-    └── templates
-        └── index.html.hbs
+└── src
+    ├── backend.rs
+    ├── frontend.rs
+    └── main.rs
+
 ```
 
-### License
+## License
 
 MIT License © 2025 CaSilicate-dev

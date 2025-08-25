@@ -6,13 +6,15 @@ use serde_json;
 use serde_yaml;
 use std::{fs, thread};
 mod backend;
-
+mod frontend;
 #[derive(Deserialize)]
 struct ConfigData {
     database_filename: String,
     port: u32,
     addr: String,
     length: u32,
+    frontend_addr: String,
+    frontend_port: u16,
 }
 
 #[derive(Serialize)]
@@ -36,15 +38,15 @@ fn load_config() -> ConfigData {
     let contents = match fs::read_to_string("config.yaml") {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to open essential config");
+            eprint!("Failed to open essential config: {}\n", e);
+            std::process::exit(1);
         }
     };
     let config: ConfigData = match serde_yaml::from_str(&contents) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to open essential config");
+            eprint!("Failed to read essential config: {}\n", e);
+            std::process::exit(1);
         }
     };
     return config;
@@ -54,8 +56,8 @@ fn get_record(filename: String, length: u32) -> (Vec<i64>, Vec<i32>, Vec<i32>) {
     let conn = match Connection::open(filename) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to open database");
+            eprint!("Failed to open database: {}\n", e);
+            std::process::exit(1);
         }
     };
     conn.execute(
@@ -74,8 +76,8 @@ fn get_record(filename: String, length: u32) -> (Vec<i64>, Vec<i32>, Vec<i32>) {
     )) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to read database");
+            eprint!("Failed to read database: {}\n", e);
+            std::process::exit(1);
         }
     };
     let rows = stmt
@@ -118,8 +120,8 @@ fn load_lang(path: &str) -> serde_json::Value {
     let v = match serde_json::from_str(&data) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n", e);
-            panic!("Failed to read language filee");
+            eprint!("Failed to read language file: {}\n", e);
+            std::process::exit(1);
         }
     };
     return v;
@@ -227,8 +229,8 @@ async fn main() {
         address: match conf.addr.parse() {
             Ok(r) => r,
             Err(e) => {
-                eprint!("Error: {}", e);
-                panic!("Failed to parse server address")
+                eprint!("Failed to parse server address: {}", e);
+                std::process::exit(1);
             }
         },
         port: conf.port as u16,
@@ -239,8 +241,13 @@ async fn main() {
         .allow_credentials(false)
         .to_cors()
         .unwrap();
+
     thread::spawn(|| {
         backend::run();
+    });
+
+    thread::spawn(move || {
+        frontend::run(conf.frontend_addr, conf.frontend_port);
     });
 
     let _ = rocket::custom(config)
