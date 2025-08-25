@@ -152,7 +152,7 @@ fn generate_data(filename: String, length: u32) -> MonitorData {
             sum += 100;
         }
     }
-    rate = advanced_round((sum as f64) / (length as f64), 3);
+    rate = advanced_round((sum as f64) / (latencys.len() as f64), 3);
     if rate >= 90_f64 {
         rate_color = "#90ee90";
     } else if rate < 90_f64 && rate >= 50_f64 {
@@ -209,7 +209,7 @@ fn generate_data(filename: String, length: u32) -> MonitorData {
     };
 }
 
-#[get("/data")]
+#[get("/api/getdata")]
 fn root_data() -> Json<ApiResponse> {
     let conf = load_config();
 

@@ -17,3 +17,7 @@ start:
 	cd frontend && npm install && npm run build
 	cargo build --release
 	cargo run --release
+
+build_release:
+	cd frontend && npm install && npm run build
+	cargo build --release

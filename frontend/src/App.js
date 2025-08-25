@@ -6,7 +6,7 @@ function App() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetch('http://192.168.5.21:8000/data') // 替换成你的后端接口
+      fetch('http://192.168.5.21:8000/api/getdata') // 替换成你的后端接口
         .then(res => res.json())
         .then(res => {
           if(res.code === 200){
@@ -27,13 +27,13 @@ function App() {
     <div style={{ backgroundColor: '#121212', minHeight: '100vh', padding: '20px' }}>
       <Container maxWidth="sm">
         <Paper elevation={3} style={{ padding: '20px', backgroundColor: '#1e1e1e', color: '#fff' }}>
-          <Typography variant="h5">当前状态</Typography>
+          <Typography variant="h5">Minecraft 服务器在线率监视器</Typography>
           <Box mt={2} mb={2}>
             <Typography>
-              状态: <span style={{ color: data.color1 }}>{data.current}</span>
+              当前状态: <span style={{ color: data.color1 }}>{data.current}</span>
             </Typography>
             <Typography>
-              成功率: {data.rate}%
+              在线率: <span style={{ color: data.color2 }}> {data.rate}%</span>
             </Typography>
             <Box mt={1}>
               <LinearProgress

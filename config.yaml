@@ -1,8 +1,8 @@
 database_filename: "history.db"
 port: 8000
 addr: "0.0.0.0"
-interval_sec: 5
+interval_sec: 2
 server_addr: "server.fts427.top"
-length: 1000
+length: 100
 frontend_addr: "0.0.0.0"
 frontend_port: 8005
