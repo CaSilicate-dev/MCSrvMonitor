@@ -48,7 +48,15 @@ fn record(ts: i64,lc: i32,pl: i32, filename: String){
             panic!("Failed to open database");
         }
     };
-
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS mcserver (
+            timestamp INTEGER PRIMARY KEY,
+            latency INTEGER NOT NULL,
+            players INTEGER NOT NULL
+        )",
+        [],
+    )
+    .expect("Failed to create table");
     
     let _ = connection.execute(format!("INSERT INTO mcserver (timestamp, latency, players)
     VALUES ({},{},{})",ts,lc,pl).as_str(),());

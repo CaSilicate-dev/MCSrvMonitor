@@ -3,4 +3,4 @@ port: 8000
 addr: "0.0.0.0"
 interval_sec: 5
 server_addr: "server.fts427.top"
-length: 10
+length: 1000
