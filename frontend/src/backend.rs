@@ -1,5 +1,5 @@
 use rust_mc_status::{McClient, ServerEdition, ServerData};
-use sqlite;
+use rusqlite::Connection;
 use chrono::Utc;
 use tokio::time::{sleep,Duration};
 use serde::Deserialize;
@@ -12,14 +12,46 @@ struct Config{
     server_addr: String,
 }
 fn load_config() -> Config{
-    let contents = fs::read_to_string("config.yaml").unwrap();
-    let config: Config = serde_yaml::from_str(&contents).unwrap();
+    //let contents = fs::read_to_string("config.yaml").unwrap();
+    let configfile = fs::read_to_string("config.yaml");
+    let contents;
+    match configfile {
+        Ok(r) => {
+            contents = r;
+        }
+        Err(e) => {
+            eprint!("Error: {} \n",e);
+            panic!("Failed to open essential config");
+        }
+    }
+    let cont = serde_yaml::from_str(&contents);
+    let config: Config;
+    match cont {
+        Ok(r) =>{
+            config = r;
+        }
+        Err(e) => {
+            eprint!("Error: {}\n",e);
+            panic!("Failed to open essential config");
+        }
+    }
+    
     return config;
 }
 fn record(ts: i64,lc: i32,pl: i32, filename: String){
-    let connection = sqlite::open(filename).unwrap();
+    let connection = match Connection::open(filename) {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            eprint!("Error: {}\n",e);
+            panic!("Failed to open database");
+        }
+    };
+
+    
     let _ = connection.execute(format!("INSERT INTO mcserver (timestamp, latency, players)
-    VALUES ({},{},{})",ts,lc,pl));
+    VALUES ({},{},{})",ts,lc,pl).as_str(),());
 }
 fn get_time() -> i64{
     let ctimestamp = Utc::now().timestamp();
@@ -50,7 +82,7 @@ async fn get_data(client: &McClient,addr: String) -> (i32, i32){
     return (latency,players)
 }
 #[tokio::main]
-async fn main() {
+pub async fn run() {
     let conf = load_config();
     let client = McClient::new();
     loop{

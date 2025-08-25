@@ -1,65 +1,131 @@
+use rocket::config::Config;
+use rocket_dyn_templates::{Template, context};
 use rusqlite::Connection;
+use serde::Deserialize;
 use serde_json;
 use serde_yaml;
-use std::fs;
-use serde::Deserialize;
-use rocket_dyn_templates::{Template, context};
-use rocket::config::{Config};
-const LENGTH:usize = 100;
+use std::{fs, thread};
+mod backend;
+
+const LENGTH: usize = 100;
 
 #[derive(Deserialize)]
-struct ConfigData{
+struct ConfigData {
     database_filename: String,
     port: u32,
     addr: String,
 }
 
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
-fn load_config() -> ConfigData{
-    let contents = fs::read_to_string("config.yaml").unwrap();
-    let config: ConfigData = serde_yaml::from_str(&contents).unwrap();
+fn load_config() -> ConfigData {
+    let contents = match fs::read_to_string("config.yaml") {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            eprint!("Error: {}\n",e);
+            panic!("Failed to open essential config");
+        }
+    };
+    let config: ConfigData = match serde_yaml::from_str(&contents) {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            eprint!("Error: {}\n",e);
+            panic!("Failed to open essential config");
+        }
+    };
     return config;
 }
 
-fn get_record(filename: String) -> ([i64; LENGTH], [i32; LENGTH], [i32; LENGTH]){
-    let conn = Connection::open(filename).unwrap();
-    let mut stmt = conn.prepare(&format!("SELECT * FROM mcserver ORDER BY timestamp DESC LIMIT {}",LENGTH)).unwrap();
-    
-    let rows = stmt.query_map([], |row| {
-        Ok((
-            row.get::<_, i64>(0).unwrap(),
-            row.get::<_, i32>(1).unwrap(),
-            row.get::<_, i32>(2).unwrap(),
-        ))
-    }).unwrap();
+fn get_record(filename: String) -> ([i64; LENGTH], [i32; LENGTH], [i32; LENGTH]) {
+    let conn = match Connection::open(filename) {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            eprint!("Error: {}\n",e);
+            panic!("Failed to open database");
+        }
+    };
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mcserver (
+            timestamp INTEGER PRIMARY KEY,
+            latency INTEGER NOT NULL,
+            players INTEGER NOT NULL
+        )",
+        [],
+    )
+    .expect("Failed to create table");
+
+    let mut stmt = match conn
+        .prepare(&format!(
+            "SELECT * FROM mcserver ORDER BY timestamp DESC LIMIT {}",
+            LENGTH
+        )) {
+            Ok(r) => {
+                r
+            }
+            Err(e) => {
+                eprint!("Error: {}\n",e);
+                panic!("Failed to read database");
+            }
+        };
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0).unwrap(),
+                row.get::<_, i32>(1).unwrap(),
+                row.get::<_, i32>(2).unwrap(),
+            ))
+        })
+        .unwrap();
     let mut timestamps: [i64; LENGTH] = [0; LENGTH];
     let mut latencys: [i32; LENGTH] = [0; LENGTH];
     let mut players: [i32; LENGTH] = [0; LENGTH];
     let mut i = 0;
     for row in rows {
-        let (ctimestamp,clatency,cplayer) = row.unwrap();
+        let (ctimestamp, clatency, cplayer) = row.unwrap();
         timestamps[i] = ctimestamp;
         latencys[i] = clatency;
         players[i] = cplayer;
         //println!("{id} {name} {timestamp}");
-        i +=1;
+        i += 1;
     }
-    return (timestamps,latencys,players);
+    return (timestamps, latencys, players);
 }
 
-fn advanced_round(value: f64, digits: u32) -> f64{
+fn advanced_round(value: f64, digits: u32) -> f64 {
     let m = value * 10_f64.powi(digits as i32);
     let r = m.round() / 10_f64.powi(digits as i32);
-    return r
+    return r;
 }
 
-fn load_lang(path: &str) -> serde_json::Value{
-    let data = fs::read_to_string(path).unwrap();
-    let v = serde_json::from_str(&data).unwrap();
+fn load_lang(path: &str) -> serde_json::Value {
+    let data = match fs::read_to_string(path) {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            eprint!("Failed to read language file: {}",e);
+            r#"{"online": "Online", "offline": "Offline", "hl": "High Latency", "block": "■"}"#.to_string()
+        }
+    };
+    let v = match serde_json::from_str(&data) {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            eprint!("Error: {}\n",e);
+            panic!("Failed to read language filee");
+        }
+    };
     return v;
 }
-fn generate_data(filename: String) -> (String, String, String, String, String, ){
+fn generate_data(filename: String) -> (String, String, String, String, String) {
     let lang = load_lang("assets/lang.json");
 
     let (_, latencys, _) = get_record(filename);
@@ -67,32 +133,28 @@ fn generate_data(filename: String) -> (String, String, String, String, String, )
     let current_latency = latencys[0];
     let current_status;
     let current_status_color;
-    if current_latency >=0 && current_latency <= 150 {
+    if current_latency >= 0 && current_latency <= 150 {
         current_status = (&lang["online"].as_str().unwrap()).to_string();
         current_status_color = "#90ee90";
-    }
-    else if current_latency > 150 {
+    } else if current_latency > 150 {
         current_status = (&lang["hl"].as_str().unwrap()).to_string();
         current_status_color = "#ffff00";
-    }
-    else {
+    } else {
         current_status = (&lang["offline"].as_str().unwrap()).to_string();
         current_status_color = "#ff0000";
     }
     let rate;
     let mut sum = 0;
     let rate_color;
-    for i in latencys.iter(){
+    for i in latencys.iter() {
         sum += *i;
     }
     rate = advanced_round((sum as f64) / (LENGTH as f64), 3);
     if rate >= 90_f64 {
         rate_color = "#90ee90";
-    }
-    else if rate < 90_f64 && rate >= 50_f64 {
+    } else if rate < 90_f64 && rate >= 50_f64 {
         rate_color = "#ffff00";
-    }
-    else {
+    } else {
         rate_color = "#ff0000";
     }
 
@@ -100,38 +162,79 @@ fn generate_data(filename: String) -> (String, String, String, String, String, )
 
     for i in latencys.iter() {
         if *i >= 0 && *i <= 150 {
-            verbose_info.push_str(format!("<span class=\"block\" style=\"color : {};\">{}</span>", "#90ee90",lang["block"].as_str().unwrap()).as_str());
-        }
-        else if *i > 150 {
-            verbose_info.push_str(format!(r#"<span class="block" style="color : {};">{}</span>"#, "#ffff00",lang["block"].as_str().unwrap()).as_str());
-        }
-        else {
-            verbose_info.push_str(format!(r#"<span class="block" style="color : {};">{}</span>"#, "#ff0000",lang["block"].as_str().unwrap()).as_str());
+            verbose_info.push_str(
+                format!(
+                    "<span class=\"block\" style=\"color : {};\">{}</span>",
+                    "#90ee90",
+                    lang["block"].as_str().unwrap()
+                )
+                .as_str(),
+            );
+        } else if *i > 150 {
+            verbose_info.push_str(
+                format!(
+                    r#"<span class="block" style="color : {};">{}</span>"#,
+                    "#ffff00",
+                    lang["block"].as_str().unwrap()
+                )
+                .as_str(),
+            );
+        } else {
+            verbose_info.push_str(
+                format!(
+                    r#"<span class="block" style="color : {};">{}</span>"#,
+                    "#ff0000",
+                    lang["block"].as_str().unwrap()
+                )
+                .as_str(),
+            );
         }
     }
-    return (current_status_color.to_string(), current_status.to_string(), rate_color.to_string(), format!("{}",rate), verbose_info);
-
+    return (
+        current_status_color.to_string(),
+        current_status.to_string(),
+        rate_color.to_string(),
+        format!("{}", rate),
+        verbose_info,
+    );
 }
 
 #[get("/data")]
-fn root_data() -> Template{
+fn root_data() -> Template {
     let conf = load_config();
 
     let (color1, status, color2, rate, verbose) = generate_data(conf.database_filename);
-    Template::render("index", context! {color1: color1, status: status, color2: color2, rate: rate, verbose: verbose})
+    Template::render(
+        "index",
+        context! {color1: color1, status: status, color2: color2, rate: rate, verbose: verbose},
+    )
 }
 
 #[rocket::main]
-async fn main(){
+async fn main() {
     let conf = load_config();
     let config = Config {
-        address: conf.addr.parse().unwrap(),
+        address: match conf.addr.parse() {
+            Ok(r) => {
+                r
+            }
+            Err(e) => {
+                eprint!("Error: {}",e);
+                panic!("Failed to parse server address")
+            }
+        },
         port: conf.port as u16,
         ..Config::default()
     };
+
+    thread::spawn(|| {
+        backend::run();
+    });
+
     let _ = rocket::custom(config)
         .attach(Template::fairing())
         .mount("/", routes![root_data])
-        .launch().await.unwrap();
+        .launch()
+        .await
+        .unwrap();
 }
-
