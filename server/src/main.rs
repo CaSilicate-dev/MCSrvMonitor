@@ -1,5 +1,5 @@
 use rocket::{config::Config, serde::json::Json};
-use rocket_cors::{CorsOptions};
+use rocket_cors::CorsOptions;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -34,20 +34,16 @@ extern crate rocket;
 
 fn load_config() -> ConfigData {
     let contents = match fs::read_to_string("config.yaml") {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n",e);
+            eprint!("Error: {}\n", e);
             panic!("Failed to open essential config");
         }
     };
     let config: ConfigData = match serde_yaml::from_str(&contents) {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n",e);
+            eprint!("Error: {}\n", e);
             panic!("Failed to open essential config");
         }
     };
@@ -56,11 +52,9 @@ fn load_config() -> ConfigData {
 
 fn get_record(filename: String, length: u32) -> (Vec<i64>, Vec<i32>, Vec<i32>) {
     let conn = match Connection::open(filename) {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n",e);
+            eprint!("Error: {}\n", e);
             panic!("Failed to open database");
         }
     };
@@ -74,19 +68,16 @@ fn get_record(filename: String, length: u32) -> (Vec<i64>, Vec<i32>, Vec<i32>) {
     )
     .expect("Failed to create table");
 
-    let mut stmt = match conn
-        .prepare(&format!(
-            "SELECT * FROM mcserver ORDER BY timestamp DESC LIMIT {}",
-            length
-        )) {
-            Ok(r) => {
-                r
-            }
-            Err(e) => {
-                eprint!("Error: {}\n",e);
-                panic!("Failed to read database");
-            }
-        };
+    let mut stmt = match conn.prepare(&format!(
+        "SELECT * FROM mcserver ORDER BY timestamp DESC LIMIT {}",
+        length
+    )) {
+        Ok(r) => r,
+        Err(e) => {
+            eprint!("Error: {}\n", e);
+            panic!("Failed to read database");
+        }
+    };
     let rows = stmt
         .query_map([], |row| {
             Ok((
@@ -117,20 +108,17 @@ fn advanced_round(value: f64, digits: u32) -> f64 {
 
 fn load_lang(path: &str) -> serde_json::Value {
     let data = match fs::read_to_string(path) {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Failed to read language file: {}",e);
-            r#"{"online": "Online", "offline": "Offline", "hl": "High Latency", "block": "■"}"#.to_string()
+            eprint!("Failed to read language file: {}", e);
+            r#"{"online": "Online", "offline": "Offline", "hl": "High Latency", "block": "■"}"#
+                .to_string()
         }
     };
     let v = match serde_json::from_str(&data) {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n",e);
+            eprint!("Error: {}\n", e);
             panic!("Failed to read language filee");
         }
     };
@@ -211,12 +199,12 @@ fn generate_data(filename: String, length: u32) -> MonitorData {
         verbose_info,
     );*/
     return MonitorData {
-            color1: current_status_color.to_string(),
-            current: current_status.to_string(),
-            color2: rate_color.to_string(),
-            rate: format!("{}", rate).to_string(),
-            verboseinfo: verbose_info
-        }
+        color1: current_status_color.to_string(),
+        current: current_status.to_string(),
+        color2: rate_color.to_string(),
+        rate: format!("{}", rate).to_string(),
+        verboseinfo: verbose_info,
+    };
 }
 
 #[get("/data")]
@@ -224,11 +212,11 @@ fn root_data() -> Json<ApiResponse> {
     let conf = load_config();
 
     let md = generate_data(conf.database_filename, conf.length);
-    
+
     return Json(ApiResponse {
         code: 200,
         message: "ok".to_string(),
-        data: md
+        data: md,
     });
 }
 
@@ -237,11 +225,9 @@ async fn main() {
     let conf = load_config();
     let config = Config {
         address: match conf.addr.parse() {
-            Ok(r) => {
-                r
-            }
+            Ok(r) => r,
             Err(e) => {
-                eprint!("Error: {}",e);
+                eprint!("Error: {}", e);
                 panic!("Failed to parse server address")
             }
         },
@@ -251,7 +237,8 @@ async fn main() {
     let cors = CorsOptions::default()
         .allowed_origins(rocket_cors::AllowedOrigins::All)
         .allow_credentials(false)
-        .to_cors().unwrap();
+        .to_cors()
+        .unwrap();
     thread::spawn(|| {
         backend::run();
     });

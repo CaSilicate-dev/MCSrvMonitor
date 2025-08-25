@@ -1,17 +1,17 @@
-use rust_mc_status::{McClient, ServerEdition, ServerData};
-use rusqlite::Connection;
 use chrono::Utc;
-use tokio::time::{sleep,Duration};
+use rusqlite::Connection;
+use rust_mc_status::{McClient, ServerData, ServerEdition};
 use serde::Deserialize;
 use std::fs;
+use tokio::time::{Duration, sleep};
 
 #[derive(Deserialize)]
-struct Config{
+struct Config {
     database_filename: String,
     interval_sec: u32,
     server_addr: String,
 }
-fn load_config() -> Config{
+fn load_config() -> Config {
     //let contents = fs::read_to_string("config.yaml").unwrap();
     let configfile = fs::read_to_string("config.yaml");
     let contents;
@@ -20,60 +20,66 @@ fn load_config() -> Config{
             contents = r;
         }
         Err(e) => {
-            eprint!("Error: {} \n",e);
+            eprint!("Error: {} \n", e);
             panic!("Failed to open essential config");
         }
     }
     let cont = serde_yaml::from_str(&contents);
     let config: Config;
     match cont {
-        Ok(r) =>{
+        Ok(r) => {
             config = r;
         }
         Err(e) => {
-            eprint!("Error: {}\n",e);
+            eprint!("Error: {}\n", e);
             panic!("Failed to open essential config");
         }
     }
-    
+
     return config;
 }
-fn record(ts: i64,lc: i32,pl: i32, filename: String){
+fn record(ts: i64, lc: i32, pl: i32, filename: String) {
     let connection = match Connection::open(filename) {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Error: {}\n",e);
+            eprint!("Error: {}\n", e);
             panic!("Failed to open database");
         }
     };
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS mcserver (
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS mcserver (
             timestamp INTEGER PRIMARY KEY,
             latency INTEGER NOT NULL,
             players INTEGER NOT NULL
         )",
-        [],
-    )
-    .expect("Failed to create table");
-    
-    let _ = connection.execute(format!("INSERT INTO mcserver (timestamp, latency, players)
-    VALUES ({},{},{})",ts,lc,pl).as_str(),());
+            [],
+        )
+        .expect("Failed to create table");
+
+    let _ = connection.execute(
+        format!(
+            "INSERT INTO mcserver (timestamp, latency, players)
+    VALUES ({},{},{})",
+            ts, lc, pl
+        )
+        .as_str(),
+        (),
+    );
 }
-fn get_time() -> i64{
+fn get_time() -> i64 {
     let ctimestamp = Utc::now().timestamp();
-    return ctimestamp
+    return ctimestamp;
 }
-async fn get_data(client: &McClient,addr: String) -> (i32, i32){
-    let status = client.ping(addr.as_str(),ServerEdition::Java).await;
+async fn get_data(client: &McClient, addr: String) -> (i32, i32) {
+    let status = client.ping(addr.as_str(), ServerEdition::Java).await;
     let latency;
     let players;
-    match status{
+    match status {
         Ok(status) => {
             latency = status.latency as i32;
             let data = status.data;
-            match data{
+            match data {
                 ServerData::Java(status) => {
                     players = status.players.online as i32;
                 }
@@ -87,21 +93,19 @@ async fn get_data(client: &McClient,addr: String) -> (i32, i32){
             players = -1;
         }
     }
-    return (latency,players)
+    return (latency, players);
 }
 #[tokio::main]
 pub async fn run() {
     let conf = load_config();
     let client = McClient::new();
-    loop{
+    loop {
         let ct = get_time();
         if ct % (conf.interval_sec as i64) == 0 {
-            let (l,p) = get_data(&client, conf.server_addr.clone()).await;
-            record(ct,l,p, conf.database_filename.clone());
+            let (l, p) = get_data(&client, conf.server_addr.clone()).await;
+            record(ct, l, p, conf.database_filename.clone());
             sleep(Duration::from_millis(1000)).await;
         }
         sleep(Duration::from_millis(500)).await;
     }
-    
-    
 }
