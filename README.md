@@ -37,7 +37,7 @@ git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
 cd MCSrvMonitor/server
 cd frontend && npm install && npm run build
 cd ../server
-# Edit config.yaml as needed
+# Edit config.json as needed
 cargo run --release
 ```
 
@@ -45,7 +45,7 @@ cargo run --release
 
 ### Configuration
 
-Example `config.yaml`:
+Example `config.json`:
 
 ```json
 {

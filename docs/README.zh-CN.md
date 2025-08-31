@@ -25,7 +25,7 @@
 ```bash
 git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
 cd MCSrvMonitor/server
-# 根据需要编辑 config.yaml
+# 根据需要编辑 config.json
 cargo run --release
 ```
 
