@@ -80,37 +80,34 @@ Example `config.yaml`:
 .
 ├── assets
 │   └── lang.json
+├── Cargo.lock
 ├── Cargo.toml
+├── config.json
 ├── config.yaml
 ├── docs
+│   ├── config.md
+│   ├── config.zh-CN.md
 │   └── README.zh-CN.md
 ├── frontend
+│   ├── build
+│   ├── node_modules
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── public
-│   │   ├── favicon.ico
-│   │   ├── index.html
-│   │   ├── logo192.png
-│   │   ├── logo512.png
-│   │   ├── manifest.json
-│   │   └── robots.txt
 │   ├── README.md
 │   └── src
-│       ├── App.css
-│       ├── App.js
-│       ├── App.test.js
-│       ├── index.css
-│       ├── index.js
-│       ├── logo.svg
-│       ├── reportWebVitals.js
-│       └── setupTests.js
+├── history.db
 ├── LICENSE
 ├── Makefile
 ├── README.md
-└── src
-    ├── backend.rs
-    ├── frontend.rs
-    └── main.rs
+├── src
+│   ├── backend.rs
+│   ├── frontend.rs
+│   └── main.rs
+└── target
+    ├── CACHEDIR.TAG
+    ├── debug
+    └── release
 
 ```
 

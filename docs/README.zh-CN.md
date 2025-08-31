@@ -63,38 +63,36 @@ cargo run --release
 
 ```text
 .
+├── assets
+│   └── lang.json
+├── Cargo.lock
+├── Cargo.toml
+├── config.json
+├── config.yaml
+├── docs
+│   ├── config.md
+│   ├── config.zh-CN.md
+│   └── README.zh-CN.md
 ├── frontend
+│   ├── build
+│   ├── node_modules
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── public
-│   │   ├── favicon.ico
-│   │   ├── index.html
-│   │   ├── logo192.png
-│   │   ├── logo512.png
-│   │   ├── manifest.json
-│   │   └── robots.txt
 │   ├── README.md
 │   └── src
-│       ├── App.css
-│       ├── App.js
-│       ├── App.test.js
-│       ├── index.css
-│       ├── index.js
-│       ├── logo.svg
-│       ├── reportWebVitals.js
-│       └── setupTests.js
+├── history.db
 ├── LICENSE
+├── Makefile
 ├── README.md
-└── server
-    ├── assets
-    │   └── lang.json
-    ├── Cargo.toml
-    ├── config.yaml
-    ├── src
-    │   ├── backend.rs
-    │   └── main.rs
-    └── templates
-        └── index.html.hbs
+├── src
+│   ├── backend.rs
+│   ├── frontend.rs
+│   └── main.rs
+└── target
+    ├── CACHEDIR.TAG
+    ├── debug
+    └── release
 ```
 
 ### 开源协议
