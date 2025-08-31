@@ -11,7 +11,7 @@ A high-accuracy, high-performance, minimalistic Minecraft server status monitor 
 - [x] Lightweight web frontend for real-time status display
 - [x] Simple configuration and easy deployment
 - [ ] Both Java and Bedrock Edition server support
-- [ ] Multiple server monitoring support
+- [x] Multiple server monitoring support
 ## Quick Start
 
 ### Requirements
