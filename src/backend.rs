@@ -3,116 +3,182 @@ use rusqlite::Connection;
 use rust_mc_status::{McClient, ServerData, ServerEdition};
 use serde::Deserialize;
 use serde_json;
-use std::{fs};
+use std::fs;
 use tokio::time::{Duration, sleep};
 
-#[derive(Deserialize)]
-struct Config {
+//#[derive(Deserialize)]
+/*struct Config {
     database_filename: String,
     interval_sec: u32,
     server_addr: String,
 }
+struct SingleServer {
+    name: String,
+    addr: String,
+}*/
+#[derive(Debug, Deserialize)]
+struct Config {
+    //port: u16,
+    //length: u32,
+    backend: BackendConfig,
+    //frontend: FrontendConfig,
+    servers: Vec<SingleServerConfig>,
+}
+#[derive(Debug, Deserialize)]
+struct FrontendConfig {
+    //addr: String,
+    //port: u16,
+}
+#[derive(Debug, Deserialize)]
+struct BackendConfig {
+    dbfile: String,
+    interval: u32,
+}
+#[derive(Debug, Deserialize, Clone)]
+struct SingleServerConfig {
+    name: String,
+    addr: String,
+}
+#[derive(Debug)]
+struct ResultData {
+    latencies: Vec<i32>,
+    players: Vec<i32>,
+    playerlists: Vec<Vec<String>>,
+    length: u32,
+}
+impl Default for ResultData {
+    fn default() -> Self {
+        ResultData { latencies: Vec::new(), players: Vec::new(), playerlists: Vec::new(), length: 0 }
+    }
+}
 fn load_config() -> Config {
     //let contents = fs::read_to_string("config.yaml").unwrap();
-    let configfile = fs::read_to_string("config.yaml");
-    let contents;
-    match configfile {
+    let configfile = fs::read_to_string("config.json");
+    let contents = match configfile {
         Ok(r) => {
-            contents = r;
+            r
         }
         Err(e) => {
             eprint!("Failed to open essential config: {} \n", e);
             std::process::exit(1);
         }
-    }
-    let cont = serde_yaml::from_str(&contents);
+    };
+    let cont = serde_json::from_str(&contents);
     let config: Config;
     match cont {
         Ok(r) => {
             config = r;
         }
         Err(e) => {
-            eprint!("Failed to open essential config: {}\n", e);
+            eprint!("Failed to parse essential config: {}\n", e);
             std::process::exit(1);
         }
     }
 
     return config;
 }
-fn record(ts: i64, lc: i32, pl: i32, pll: String, filename: String) {
-    let connection = match Connection::open(filename) {
+fn record(ts:i64, dbfile: &String, rd: ResultData, serverlist: &Vec<SingleServerConfig>) {
+    let connection = match Connection::open(dbfile) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("Failed to open database: {}\n", e);
+            eprint!("Failed to open essential database: {}\n", e);
             std::process::exit(1);
         }
     };
-    connection
-        .execute(
-            "CREATE TABLE IF NOT EXISTS mcserver (
-            timestamp INTEGER PRIMARY KEY,
-            latency INTEGER NOT NULL,
-            players INTEGER NOT NULL,
-            playerlist TEXT NOT NULL
-        )",
-            [],
-        )
-        .expect("Failed to create table");
+    for i in 0..serverlist.len() {
+        let _ = connection
+            .execute(format!(
+                "CREATE TABLE IF NOT EXISTS {} (
+                timestamp INTEGER PRIMARY KEY,
+                latency INTEGER NOT NULL,
+                players INTEGER NOT NULL,
+                playerlist TEXT NOT NULL
+                )",serverlist[i].name.as_str()).as_str(),
+                ()
+            );
 
-    let _ = connection.execute(
-            "INSERT INTO mcserver (timestamp, latency, players, playerlist)
-            VALUES (?1,?2,?3,?4)",
-        (&ts, &lc, &pl, &pll),
-    );
+        let _ = connection.execute(
+            format!(
+            "INSERT INTO {} (timestamp, latency, players, playerlist)
+                VALUES (?1,?2,?3,?4)",serverlist[i].name.as_str()).as_str(),
+            (ts, rd.latencies[i],rd.players[i],match serde_json::to_string(&rd.playerlists[i]) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprint!("{}\n",e);
+                    std::process::exit(1);
+                }
+            }),
+        );
+    }
+    
 }
 fn get_time() -> i64 {
     let ctimestamp = Utc::now().timestamp();
     return ctimestamp;
 }
-async fn get_data(client: &McClient, addr: String) -> (i32, i32, String) {
-    let status = client.ping(addr.as_str(), ServerEdition::Java).await;
-    let latency;
-    let players;
-    let mut pll: Vec<String> = vec![];
-    match status {
-        Ok(status) => {
-            latency = status.latency as i32;
-            let data = status.data;
-            match data {
-                ServerData::Java(status) => {
-                    players = status.players.online as i32;
-                    match status.players.sample {
-                        Some(data) => {
-                            for i in data {
-                                pll.push(i.name);
+async fn get_data(client: &McClient, servers: &Vec<SingleServerConfig>) -> ResultData {
+    let mut data = ResultData::default();
+    for server in servers {
+        println!("{:?}",server.addr.as_str());
+        let status = client.ping(server.addr.as_str(), ServerEdition::Java).await;
+        //println!("{:?}",status);
+        let mut players:Vec<String> = Vec::new();
+        match status {
+            Ok(status) => {
+                data.latencies.push(status.latency as i32);
+                let sdata = status.data;
+                match sdata {
+                    ServerData::Java(status) => {
+                        data.players.push(status.players.online as i32);
+                        match status.players.sample {
+                            Some(pdata) => {
+                                for i in pdata {
+                                    println!("{:?}",i.name);
+                                    players.push(i.name);
+                                }
                             }
+                            _ => {}
                         }
-                        None => {}
+                    }
+                    ServerData::Bedrock(_) => {
+                        data.players.push(-1);
                     }
                 }
-                ServerData::Bedrock(_) => {
-                    players = -1;
-                }
+                data.playerlists.push(players);
+            }
+            Err(_) => {
+                data.playerlists.push(players);
+                data.latencies.push(-1);
+                data.players.push(-1);
             }
         }
-        Err(_) => {
-            latency = -1;
-            players = -1;
-        }
+        data.length += 1;
     }
-    return (latency, players, serde_json::to_string(&pll).unwrap());
+    return data;
+    //return (latency, players, serde_json::to_string(&pll).unwrap());
 }
 
 pub async fn run() {
     let conf = load_config();
+    for server in &conf.servers {
+        if server.name.chars().all(|c| c.is_ascii_lowercase()) {}
+        else {
+            eprint!("Invalid server name: {}", server.name);
+            std::process::exit(1);
+        }
+    }
     let client = McClient::new();
+    //print!("{:?}", conf);
     loop {
         let ct = get_time();
-        if ct % (conf.interval_sec as i64) == 0 {
-            let (l, p, pll) = get_data(&client, conf.server_addr.clone()).await;
-            record(ct, l, p, pll, conf.database_filename.clone());
+        if ct % (conf.backend.interval as i64) == 0 {
+            println!("{:?}","run");
+            let rd = get_data(&client, &conf.servers).await;
+            println!("{:?}",rd);
+            record(ct, &conf.backend.dbfile, rd, &conf.servers);
             sleep(Duration::from_millis(1000)).await;
         }
+        println!("{:?}",ct);
         sleep(Duration::from_millis(500)).await;
     }
 }

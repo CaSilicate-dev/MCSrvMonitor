@@ -1,0 +1,23 @@
+{
+    "port": 18650,
+    "length": 8640,
+    "backend": {
+        "dbfile": "history.db",
+        "interval": 1
+    },
+    "frontend": {
+        "addr": "0.0.0.0",
+        "port": 21700
+    },
+    "servers": [
+        {
+            "name": "fts",
+            "addr": "server.fts427.top"
+        },
+        {
+            "name": "local",
+            "addr": "server.fts427.top"
+        }
+    ]
+    
+}

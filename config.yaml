@@ -3,6 +3,6 @@ port: 8000
 addr: "0.0.0.0"
 interval_sec: 2
 server_addr: "server.fts427.top"
-length: 100
+length: 8640
 frontend_addr: "0.0.0.0"
 frontend_port: 8005

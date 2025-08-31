@@ -1,4 +1,4 @@
-use rocket::{config::Config, serde::json::Json};
+/*use rocket::{config::Config, serde::json::Json};
 use rocket_cors::CorsOptions;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -248,8 +248,10 @@ async fn main() {
     tokio::spawn(async {
         backend::run().await;
     });
-
-    thread::spawn(move || {
+    loop {
+        
+    }
+    /*thread::spawn(move || {
         frontend::run(conf.frontend_addr, conf.frontend_port);
     });
 
@@ -258,5 +260,11 @@ async fn main() {
         .mount("/", routes![root_data])
         .launch()
         .await
-        .unwrap();
+        .unwrap();*/
+}
+*/
+mod backend;
+#[tokio::main]
+async fn main() {
+    backend::run().await;
 }

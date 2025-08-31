@@ -6,7 +6,7 @@ function App() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetch('http://192.168.5.21:8000/api/getdata')
+      fetch('http://127.0.0.1:8000/api/getdata')
         .then(res => res.json())
         .then(res => {
           if(res.code === 200){

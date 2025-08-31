@@ -7,7 +7,8 @@ edition = "2024"
 chrono = "0.4.41"
 rocket = { version = "0.5.1", features = ["json"] }
 rocket_cors = "0.6.0"
-rocket_dyn_templates = { version = "0.2.0", features = ["handlebars"]}
+#rocket_dyn_templates = { version = "0.2.0", features = ["handlebars"]}
+ron = "0.11.0"
 rusqlite = "0.37.0"
 rust-mc-status = "1.1.1"
 serde = { version = "1.0.219", features = ["derive"] }
