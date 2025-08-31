@@ -72,7 +72,7 @@ Example `config.yaml`:
 }
 ```
 
-[Configuration Explained docs/config.md](./config.md)
+[Configuration Explained docs/config.md](docs/config.md)
 
 ## Project Structure
 
