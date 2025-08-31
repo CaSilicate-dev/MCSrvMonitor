@@ -47,21 +47,32 @@ cargo run --release
 
 Example `config.yaml`:
 
-```yaml
-database_filename: "history.db"
-port: 8000
-addr: "0.0.0.0"
-interval_sec: 5
-server_addr: "server.fts427.top"
-length: 1000
+```json
+{
+    "port": 18650,
+    "length": 8640,
+    "backend": {
+        "dbfile": "history.db",
+        "interval": 1
+    },
+    "frontend": {
+        "addr": "0.0.0.0",
+        "port": 21700
+    },
+    "servers": [
+        {
+            "name": "fts",
+            "addr": "server.fts427.top"
+        },
+        {
+            "name": "local",
+            "addr": "server.fts427.top"
+        }
+    ]
+}
 ```
 
-- `database_filename`: SQLite database file path
-- `port`: API port
-- `addr`: API address
-- `interval_sec`: Sampling interval
-- `server_addr`: Minecraft server address `(address:[port])`
-- `length`: WebUI history length
+[Configuration Explained docs/config.md](./config.md)
 
 ## Project Structure
 

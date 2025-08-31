@@ -31,23 +31,33 @@ cargo run --release
 
 # 配置
 
-示例 `config.yaml`:
+示例 `config.json`:
 
-```yaml
-database_filename: "history.db"
-port: 8000
-addr: "0.0.0.0"
-interval_sec: 5
-server_addr: "server.fts427.top"
-length: 1000
+```json
+{
+    "port": 18650,
+    "length": 8640,
+    "backend": {
+        "dbfile": "history.db",
+        "interval": 1
+    },
+    "frontend": {
+        "addr": "0.0.0.0",
+        "port": 21700
+    },
+    "servers": [
+        {
+            "name": "fts",
+            "addr": "server.fts427.top"
+        },
+        {
+            "name": "local",
+            "addr": "server.fts427.top"
+        }
+    ]
+}
 ```
-
-- `database_filename`: SQLite 数据库文件路径
-- `port`: API 端口
-- `addr`: API 监听地址
-- `interval_sec`: 采样间隔（秒）
-- `server_addr`: Minecraft 服务器地址 `(address:[port])`
-- `length`: WebUI 历史记录长度
+[配置教程 docs/config.zh-CN.md](./config.zh-CN.md)
 
 ### 项目结构
 
