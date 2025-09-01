@@ -1,20 +1,34 @@
-/*use rocket::{config::Config, serde::json::Json};
+use rocket::{config::Config, serde::json::Json};
 use rocket_cors::CorsOptions;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde_yaml;
 use std::{fs, thread};
 mod backend;
 mod frontend;
 #[derive(Deserialize)]
-struct ConfigData {
-    database_filename: String,
-    port: u32,
+struct ConfigFile {
     addr: String,
+    port: u16,
     length: u32,
-    frontend_addr: String,
-    frontend_port: u16,
+    backend: BackendConfig,
+    frontend: FrontendConfig,
+    servers: Vec<SingleServerConfig>,
+}
+#[derive(Debug, Deserialize)]
+struct FrontendConfig {
+    addr: String,
+    port: u16,
+}
+#[derive(Debug, Deserialize)]
+struct BackendConfig {
+    dbfile: String,
+    interval: u32,
+}
+#[derive(Debug, Deserialize, Clone)]
+struct SingleServerConfig {
+    name: String,
+    addr: String,
 }
 
 #[derive(Serialize)]
@@ -34,24 +48,33 @@ struct MonitorData {
 #[macro_use]
 extern crate rocket;
 
-fn load_config() -> ConfigData {
-    let contents = match fs::read_to_string("config.yaml") {
-        Ok(r) => r,
+fn load_config() -> ConfigFile {
+    //let contents = fs::read_to_string("config.yaml").unwrap();
+    let configfile = fs::read_to_string("config.json");
+    let contents = match configfile {
+        Ok(r) => {
+            r
+        }
         Err(e) => {
-            eprint!("Failed to open essential config: {}\n", e);
+            eprint!("Failed to open essential config: {} \n", e);
+            
             std::process::exit(1);
         }
     };
-    let config: ConfigData = match serde_yaml::from_str(&contents) {
-        Ok(r) => r,
+    let cont = serde_json::from_str(&contents);
+    let config: ConfigFile;
+    match cont {
+        Ok(r) => {
+            config = r;
+        }
         Err(e) => {
-            eprint!("Failed to read essential config: {}\n", e);
+            eprint!("Failed to parse essential config: {}\n", e);
             std::process::exit(1);
         }
-    };
+    }
+
     return config;
 }
-
 fn get_record(filename: String, length: u32) -> (Vec<i64>, Vec<i32>, Vec<i32>) {
     let conn = match Connection::open(filename) {
         Ok(r) => r,
@@ -216,7 +239,7 @@ fn generate_data(filename: String, length: u32) -> MonitorData {
 fn root_data() -> Json<ApiResponse> {
     let conf = load_config();
 
-    let md = generate_data(conf.database_filename, conf.length);
+    let md = generate_data(conf.backend.dbfile, conf.length);
 
     return Json(ApiResponse {
         code: 200,
@@ -225,9 +248,20 @@ fn root_data() -> Json<ApiResponse> {
     });
 }
 
+
+
 #[rocket::main]
 async fn main() {
     let conf = load_config();
+
+    for server in &conf.servers {
+        if server.name.chars().all(|c| c.is_ascii_lowercase()) {}
+        else {
+            eprint!("Invalid server name: {}", server.name);
+            std::process::exit(1);
+        }
+    }
+
     let config = Config {
         address: match conf.addr.parse() {
             Ok(r) => r,
@@ -248,11 +282,9 @@ async fn main() {
     tokio::spawn(async {
         backend::run().await;
     });
-    loop {
-        
-    }
-    /*thread::spawn(move || {
-        frontend::run(conf.frontend_addr, conf.frontend_port);
+
+    thread::spawn(move || {
+        frontend::run();
     });
 
     let _ = rocket::custom(config)
@@ -260,11 +292,5 @@ async fn main() {
         .mount("/", routes![root_data])
         .launch()
         .await
-        .unwrap();*/
-}
-*/
-mod backend;
-#[tokio::main]
-async fn main() {
-    backend::run().await;
+        .unwrap();
 }

@@ -60,6 +60,7 @@ fn load_config() -> Config {
         }
         Err(e) => {
             eprint!("Failed to open essential config: {} \n", e);
+            
             std::process::exit(1);
         }
     };

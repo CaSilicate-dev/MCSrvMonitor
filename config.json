@@ -1,5 +1,6 @@
 {
     "port": 18650,
+    "addr": "0.0.0.0",
     "length": 8640,
     "backend": {
         "dbfile": "history.db",
