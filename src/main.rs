@@ -2,7 +2,6 @@ use rocket::{config::Config, serde::json::Json};
 use rocket_cors::CorsOptions;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::{fs, thread};
 mod backend;
 mod frontend;
@@ -41,239 +40,57 @@ struct SingleServerData {
 }
 impl Default for SingleServerData {
     fn default() -> Self {
-        SingleServerData { timestamp: 0, latency: -1, player: -1, playerlist: "".to_string() }
+        SingleServerData {
+            timestamp: 0,
+            latency: -1,
+            player: -1,
+            playerlist: "".to_string(),
+        }
     }
 }
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Default)]
 struct ResponseData {
     data: Vec<SingleServerData>,
 }
-impl Default for ResponseData {
-    fn default() -> Self {
-        ResponseData { data: Vec::new() }
-    }
-}
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Default)]
 struct ResponseList {
     namelist: Vec<String>,
-}
-impl Default for ResponseList {
-    fn default() -> Self {
-        ResponseList { namelist: Vec::new() }
-    }
 }
 #[macro_use]
 extern crate rocket;
 
 static CONFIG: Lazy<Mutex<ConfigFile>> = Lazy::new(|| {
     let conf = load_config();
-    return Mutex::new(conf)
+    Mutex::new(conf)
 });
 
 fn load_config() -> ConfigFile {
     //let contents = fs::read_to_string("config.yaml").unwrap();
     let configfile = fs::read_to_string("config.json");
     let contents = match configfile {
-        Ok(r) => {
-            r
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Failed to open essential config: {} \n", e);
-            
+            eprintln!("Failed to open essential config: {} ", e);
+
             std::process::exit(1);
         }
     };
     let cont = serde_json::from_str(&contents);
-    let config: ConfigFile;
     match cont {
-        Ok(r) => {
-            config = r;
-        }
+        Ok(r) => r,
         Err(e) => {
-            eprint!("Failed to parse essential config: {}\n", e);
+            eprintln!("Failed to parse essential config: {}", e);
             std::process::exit(1);
         }
     }
-
-    return config;
 }
 
-/*fn advanced_round(value: f64, digits: u32) -> f64 {
-    let m = value * 10_f64.powi(digits as i32);
-    let r = m.round() / 10_f64.powi(digits as i32);
-    return r;
-}*/
-
-/*fn get_record(filename: String, length: u32) -> (Vec<i64>, Vec<i32>, Vec<i32>) {
-    let conn = match Connection::open(filename) {
-        Ok(r) => r,
-        Err(e) => {
-            eprint!("Failed to open database: {}\n", e);
-            std::process::exit(1);
-        }
-    };
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS mcserver (
-            timestamp INTEGER PRIMARY KEY,
-            latency INTEGER NOT NULL,
-            players INTEGER NOT NULL
-        )",
-        [],
-    )
-    .expect("Failed to create table");
-
-    let mut stmt = match conn.prepare(&format!(
-        "SELECT * FROM mcserver ORDER BY timestamp DESC LIMIT {}",
-        length
-    )) {
-        Ok(r) => r,
-        Err(e) => {
-            eprint!("Failed to read database: {}\n", e);
-            std::process::exit(1);
-        }
-    };
-    let rows = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0).unwrap(),
-                row.get::<_, i32>(1).unwrap(),
-                row.get::<_, i32>(2).unwrap(),
-            ))
-        })
-        .unwrap();
-    let mut timestamps: Vec<i64> = Vec::new();
-    let mut latencys: Vec<i32> = Vec::new();
-    let mut players: Vec<i32> = Vec::new();
-    for row in rows {
-        let (ctimestamp, clatency, cplayer) = row.unwrap();
-        timestamps.push(ctimestamp);
-        latencys.push(clatency);
-        players.push(cplayer);
-        //println!("{id} {name} {timestamp}");
-    }
-    return (timestamps, latencys, players);
-}
-
-
-
-fn load_lang(path: &str) -> serde_json::Value {
-    let data = match fs::read_to_string(path) {
-        Ok(r) => r,
-        Err(e) => {
-            eprint!("Failed to read language file: {}", e);
-            r#"{"online": "Online", "offline": "Offline", "hl": "High Latency", "block": "■"}"#
-                .to_string()
-        }
-    };
-    let v = match serde_json::from_str(&data) {
-        Ok(r) => r,
-        Err(e) => {
-            eprint!("Failed to read language file: {}\n", e);
-            std::process::exit(1);
-        }
-    };
-    return v;
-}
-fn generate_data(filename: String, length: u32) -> MonitorData {
-    let lang = load_lang("assets/lang.json");
-
-    let (ts, latencys, _) = get_record(filename, length);
-
-    let current_latency = latencys[0];
-    let current_status;
-    let current_status_color;
-    if current_latency >= 0 && current_latency <= 150 {
-        current_status = (&lang["online"].as_str().unwrap()).to_string();
-        current_status_color = "#90ee90";
-    } else if current_latency > 150 {
-        current_status = (&lang["hl"].as_str().unwrap()).to_string();
-        current_status_color = "#ffff00";
-    } else {
-        current_status = (&lang["offline"].as_str().unwrap()).to_string();
-        current_status_color = "#ff0000";
-    }
-    let rate;
-    let mut sum = 0;
-    let rate_color;
-    for i in latencys.iter() {
-        if *i >= 0 {
-            sum += 100;
-        }
-    }
-    rate = advanced_round((sum as f64) / (latencys.len() as f64), 3);
-    if rate >= 90_f64 {
-        rate_color = "#90ee90";
-    } else if rate < 90_f64 && rate >= 50_f64 {
-        rate_color = "#ffff00";
-    } else {
-        rate_color = "#ff0000";
-    }
-
-    let mut verbose_info: String = "".to_string();
-
-    for i in 0..latencys.len() {
-        if latencys[i] >= 0 && latencys[i] <= 150 {
-            verbose_info.push_str(
-                format!(
-                    "<span title=\"{}\" class=\"block\" style=\"color : {};\">{}</span>",
-                    ts[i].to_string(),
-                    "#90ee90",
-                    lang["block"].as_str().unwrap()
-                )
-                .as_str(),
-            );
-        } else if latencys[i] > 150 {
-            verbose_info.push_str(
-                format!(
-                    "<span title=\"{}\" class=\"block\" style=\"color : {};\">{}</span>",
-                    ts[i].to_string(),
-                    "#ffff00",
-                    lang["block"].as_str().unwrap()
-                )
-                .as_str(),
-            );
-        } else {
-            verbose_info.push_str(
-                format!(
-                    "<span title=\"{}\" class=\"block\" style=\"color : {};\">{}</span>",
-                    ts[i].to_string(),
-                    "#ff0000",
-                    lang["block"].as_str().unwrap()
-                )
-                .as_str(),
-            );
-        }
-    }
-    /*return (
-        current_status_color.to_string(),
-        current_status.to_string(),
-        rate_color.to_string(),
-        format!("{}", rate),
-        verbose_info,
-    );*/
-    return MonitorData {
-        color1: current_status_color.to_string(),
-        current: current_status.to_string(),
-        color2: rate_color.to_string(),
-        rate: format!("{}", rate).to_string(),
-        verboseinfo: verbose_info,
-    };
-}
-
-#[get("/api/getdata")]
-fn root_data() -> Json<ApiResponse> {
-    let conf = load_config();
-
-    let md = generate_data(conf.backend.dbfile, conf.length);
-
-    return Json(ApiResponse {
-        code: 200,
-        message: "ok".to_string(),
-        data: md,
-    });
-}*/
-
-fn get_record(servername:String, filename: String, servers: Vec<SingleServerConfig>, length: u32) -> Result<ResponseData, String> {
+fn get_record(
+    servername: String,
+    filename: String,
+    servers: Vec<SingleServerConfig>,
+    length: u32,
+) -> Result<ResponseData, String> {
     let mut resp = ResponseData::default();
     let conn = match Connection::open(filename) {
         Ok(r) => r,
@@ -288,19 +105,16 @@ fn get_record(servername:String, filename: String, servers: Vec<SingleServerConf
         }
     };
 
-    
     let mut stmt = match conn.prepare(&format!(
         "SELECT * FROM {} ORDER BY timestamp DESC LIMIT {}",
-        server.name,
-        length,
+        server.name, length,
     )) {
         Ok(r) => r,
         Err(e) => {
             return Err(format!("Failed to read database {}", e));
         }
     };
-    let rows = match stmt
-    .query_map([], |row| {
+    let rows = match stmt.query_map([], |row| {
         Ok((
             row.get::<_, i64>(0)?,
             row.get::<_, i32>(1)?,
@@ -324,19 +138,21 @@ fn get_record(servername:String, filename: String, servers: Vec<SingleServerConf
         single_resp.playerlist = cplayerlist.to_string();
         resp.data.push(single_resp);
     }
-    return Ok(resp);
+    Ok(resp)
 }
 
-#[get("/api/servers/<servername>")]
-fn index_api_servers_servername(servername:String) -> Json<ResponseData> {
+#[get("/api/servers/<servername_in>")]
+fn index_api_servers_servername(servername_in: &str) -> Json<ResponseData> {
+    let servername = servername_in.to_string();
     let conf = CONFIG.lock().unwrap().clone();
     match get_record(servername, conf.backend.dbfile, conf.servers, conf.length) {
-        Ok(r) => {
-            return Json(r)
-        }
-        Err(e) => {
-            return Json(ResponseData { data: vec![SingleServerData{playerlist: e,..Default::default()}]})
-        }
+        Ok(r) => Json(r),
+        Err(e) => Json(ResponseData {
+            data: vec![SingleServerData {
+                playerlist: e,
+                ..Default::default()
+            }],
+        }),
     }
 }
 #[get("/api/list")]
@@ -346,15 +162,15 @@ fn index_api_list() -> Json<ResponseList> {
     for server in conf.servers {
         resp.namelist.push(server.name);
     }
-    return Json(resp);
+    Json(resp)
 }
 #[rocket::main]
 async fn main() {
     let conf = load_config();
 
     for server in &conf.servers {
-        if server.name.chars().all(|c| c.is_ascii_lowercase()) {}
-        else {
+        if server.name.chars().all(|c| c.is_ascii_lowercase()) {
+        } else {
             eprint!("Invalid server name: {}", server.name);
             std::process::exit(1);
         }
