@@ -1,14 +1,13 @@
 English | [简体中文](docs/README.zh-CN.md)
 
-# MCSrvMonitor
+# MCSrvMonitor Backend
 
-A high-accuracy, high-performance, minimalistic Minecraft server status monitor and web dashboard.
+A high-accuracy, high-performance, minimalistic Minecraft server status monitor.
 
 ## Features
 
 - [x] Efficient asynchronous polling of Minecraft server status
 - [x] Automatic storage to SQLite database
-- [x] Lightweight web frontend for real-time status display
 - [x] Simple configuration and easy deployment
 - [ ] Both Java and Bedrock Edition server support
 - [x] Multiple server monitoring support
@@ -18,30 +17,15 @@ A high-accuracy, high-performance, minimalistic Minecraft server status monitor 
 
 - Rust 1.70+
 - SQLite3
-- Nodejs
-- Make
 
 ### Build & Run
 
 ```bash
 git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
 cd MCSrvMonitor
-# Edit config.yaml as needed
-make start
-```
-
-#### Manual build
-
-```bash
-git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
-cd MCSrvMonitor/server
-cd frontend && npm install && npm run build
-cd ../server
 # Edit config.json as needed
 cargo run --release
 ```
-
-
 
 ### Configuration
 
@@ -50,14 +34,11 @@ Example `config.json`:
 ```json
 {
     "port": 18650,
-    "length": 8640,
+    "addr": "0.0.0.0",
+    "length": 250,
     "backend": {
         "dbfile": "history.db",
         "interval": 1
-    },
-    "frontend": {
-        "addr": "0.0.0.0",
-        "port": 21700
     },
     "servers": [
         {
@@ -65,52 +46,12 @@ Example `config.json`:
             "addr": "server.fts427.top"
         },
         {
-            "name": "local",
-            "addr": "server.fts427.top"
+            "name": "hypixel",
+            "addr": "mc.hypixel.net"
         }
     ]
 }
+
 ```
 
 [Configuration Explained docs/config.md](docs/config.md)
-
-## Project Structure
-
-```text
-.
-├── assets
-│   └── lang.json
-├── Cargo.lock
-├── Cargo.toml
-├── config.json
-├── config.yaml
-├── docs
-│   ├── config.md
-│   ├── config.zh-CN.md
-│   └── README.zh-CN.md
-├── frontend
-│   ├── build
-│   ├── node_modules
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── public
-│   ├── README.md
-│   └── src
-├── history.db
-├── LICENSE
-├── Makefile
-├── README.md
-├── src
-│   ├── backend.rs
-│   ├── frontend.rs
-│   └── main.rs
-└── target
-    ├── CACHEDIR.TAG
-    ├── debug
-    └── release
-
-```
-
-## License
-
-MIT License © 2025 CaSilicate-dev
