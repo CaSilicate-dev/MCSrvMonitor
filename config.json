@@ -1,14 +1,10 @@
 {
     "port": 18650,
     "addr": "0.0.0.0",
-    "length": 8640,
+    "length": 250,
     "backend": {
         "dbfile": "history.db",
         "interval": 1
-    },
-    "frontend": {
-        "addr": "0.0.0.0",
-        "port": 21700
     },
     "servers": [
         {
@@ -16,8 +12,8 @@
             "addr": "server.fts427.top"
         },
         {
-            "name": "local",
-            "addr": "server.fts427.top"
+            "name": "hypixel",
+            "addr": "mc.hypixel.net"
         }
     ]
 }

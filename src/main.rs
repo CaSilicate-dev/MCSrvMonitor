@@ -1,12 +1,14 @@
+use chrono::{DateTime, Local, TimeZone};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use rocket::{config::Config, serde::json::Json};
 use rocket_cors::CorsOptions;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::{fs, thread};
-mod backend;
-mod frontend;
-use once_cell::sync::Lazy;
+use std::fs;
 use std::sync::Mutex;
+mod backend;
+
 #[derive(Deserialize, Clone)]
 struct ConfigFile {
     addr: String,
@@ -33,7 +35,7 @@ struct SingleServerConfig {
 }
 #[derive(Serialize, Debug)]
 struct SingleServerData {
-    timestamp: i64,
+    timestamp: String,
     latency: i32,
     player: i32,
     playerlist: String,
@@ -41,7 +43,7 @@ struct SingleServerData {
 impl Default for SingleServerData {
     fn default() -> Self {
         SingleServerData {
-            timestamp: 0,
+            timestamp: "None".to_string(),
             latency: -1,
             player: -1,
             playerlist: "".to_string(),
@@ -56,6 +58,7 @@ struct ResponseData {
 struct ResponseList {
     namelist: Vec<String>,
 }
+
 #[macro_use]
 extern crate rocket;
 
@@ -63,6 +66,11 @@ static CONFIG: Lazy<Mutex<ConfigFile>> = Lazy::new(|| {
     let conf = load_config();
     Mutex::new(conf)
 });
+
+fn is_valid_string(s: &str) -> bool {
+    let aaa: Regex = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
+    return aaa.is_match(s);
+}
 
 fn load_config() -> ConfigFile {
     //let contents = fs::read_to_string("config.yaml").unwrap();
@@ -127,12 +135,14 @@ fn get_record(
             return Err(format!("Invalid db data {}", e));
         }
     };
-    //.unwrap();
 
     for row in rows {
         let mut single_resp = SingleServerData::default();
         let (ctimestamp, clatency, cplayer, cplayerlist) = row.unwrap();
-        single_resp.timestamp = ctimestamp;
+        #[allow(deprecated)]
+        let local_time: DateTime<Local> = Local.timestamp(ctimestamp, 0);
+
+        single_resp.timestamp = local_time.to_string();
         single_resp.latency = clatency;
         single_resp.player = cplayer;
         single_resp.playerlist = cplayerlist.to_string();
@@ -146,6 +156,20 @@ fn index_api_servers_servername(servername_in: &str) -> Json<ResponseData> {
     let servername = servername_in.to_string();
     let conf = CONFIG.lock().unwrap().clone();
     match get_record(servername, conf.backend.dbfile, conf.servers, conf.length) {
+        Ok(r) => Json(r),
+        Err(e) => Json(ResponseData {
+            data: vec![SingleServerData {
+                playerlist: e,
+                ..Default::default()
+            }],
+        }),
+    }
+}
+#[get("/api/serverod/<servername_in>")]
+fn index_api_serverod_servername(servername_in: &str) -> Json<ResponseData> {
+    let servername = servername_in.to_string();
+    let conf = CONFIG.lock().unwrap().clone();
+    match get_record(servername, conf.backend.dbfile, conf.servers, 1) {
         Ok(r) => Json(r),
         Err(e) => Json(ResponseData {
             data: vec![SingleServerData {
@@ -169,8 +193,7 @@ async fn main() {
     let conf = load_config();
 
     for server in &conf.servers {
-        if server.name.chars().all(|c| c.is_ascii_lowercase()) {
-        } else {
+        if !(is_valid_string(server.name.as_str())) {
             eprint!("Invalid server name: {}", server.name);
             std::process::exit(1);
         }
@@ -197,13 +220,16 @@ async fn main() {
         backend::run().await;
     });
 
-    thread::spawn(move || {
-        frontend::run();
-    });
-
     let _ = rocket::custom(config)
         .attach(cors)
-        .mount("/", routes![index_api_servers_servername, index_api_list])
+        .mount(
+            "/",
+            routes![
+                index_api_servers_servername,
+                index_api_serverod_servername,
+                index_api_list
+            ],
+        )
         .launch()
         .await
         .unwrap();
