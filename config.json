@@ -8,10 +8,12 @@
     },
     "servers": [
         {
+            "label": "FTS427 Server",
             "name": "fts",
             "addr": "server.fts427.top"
         },
         {
+            "label": "Hypixel",
             "name": "hypixel",
             "addr": "mc.hypixel.net"
         }

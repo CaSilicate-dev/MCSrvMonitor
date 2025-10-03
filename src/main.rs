@@ -31,6 +31,7 @@ struct BackendConfig {
 #[derive(Debug, Deserialize, Clone)]
 struct SingleServerConfig {
     name: String,
+    label: String,
     //addr: String,
 }
 #[derive(Serialize, Debug)]
@@ -52,11 +53,13 @@ impl Default for SingleServerData {
 }
 #[derive(Serialize, Debug, Default)]
 struct ResponseData {
+    label: String,
     data: Vec<SingleServerData>,
 }
 #[derive(Serialize, Debug, Default)]
 struct ResponseList {
     namelist: Vec<String>,
+    labellist: Vec<String>,
 }
 
 #[macro_use]
@@ -100,6 +103,7 @@ fn get_record(
     length: u32,
 ) -> Result<ResponseData, String> {
     let mut resp = ResponseData::default();
+    
     let conn = match Connection::open(filename) {
         Ok(r) => r,
         Err(e) => {
@@ -112,7 +116,7 @@ fn get_record(
             return Err(format!("Invalid server name: {}", servername));
         }
     };
-
+    resp.label = server.label.clone();
     let mut stmt = match conn.prepare(&format!(
         "SELECT * FROM {} ORDER BY timestamp DESC LIMIT {}",
         server.name, length,
@@ -158,6 +162,7 @@ fn index_api_servers_servername(servername_in: &str) -> Json<ResponseData> {
     match get_record(servername, conf.backend.dbfile, conf.servers, conf.length) {
         Ok(r) => Json(r),
         Err(e) => Json(ResponseData {
+            label: "Error".to_string(),
             data: vec![SingleServerData {
                 playerlist: e,
                 ..Default::default()
@@ -172,6 +177,7 @@ fn index_api_serverod_servername(servername_in: &str) -> Json<ResponseData> {
     match get_record(servername, conf.backend.dbfile, conf.servers, 1) {
         Ok(r) => Json(r),
         Err(e) => Json(ResponseData {
+            label: "Error".to_string(),
             data: vec![SingleServerData {
                 playerlist: e,
                 ..Default::default()
@@ -185,6 +191,7 @@ fn index_api_list() -> Json<ResponseList> {
     let mut resp = ResponseList::default();
     for server in conf.servers {
         resp.namelist.push(server.name);
+        resp.labellist.push(server.label);
     }
     Json(resp)
 }
