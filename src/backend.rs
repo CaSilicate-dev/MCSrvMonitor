@@ -1,4 +1,5 @@
 use chrono::Utc;
+use rocket::futures::future::join_all;
 use rusqlite::Connection;
 use rust_mc_status::{McClient, ServerData, ServerEdition};
 use serde::Deserialize;
@@ -38,7 +39,6 @@ struct ResultData {
     latencies: Vec<i32>,
     players: Vec<i32>,
     playerlists: Vec<Vec<String>>,
-    length: u32,
 }
 fn load_config() -> Config {
     //let contents = fs::read_to_string("config.yaml").unwrap();
@@ -110,41 +110,47 @@ fn get_time() -> i64 {
 }
 async fn get_data(client: &McClient, servers: &Vec<SingleServerConfig>) -> ResultData {
     let mut data = ResultData::default();
+    let mut server_futures = Vec::new();
     for server in servers {
-        println!("{:?}", server.addr.as_str());
-        let status = client.ping(server.addr.as_str(), ServerEdition::Java).await;
-        //println!("{:?}",status);
-        let mut players: Vec<String> = Vec::new();
-        match status {
-            Ok(status) => {
-                data.latencies.push(status.latency as i32);
-                let sdata = status.data;
-                match sdata {
-                    ServerData::Java(status) => {
-                        data.players.push(status.players.online as i32);
-                        if let Some(pdata) = status.players.sample {
-                            for i in pdata {
-                                println!("{:?}", i.name);
-                                players.push(i.name);
+        let client = client.clone();
+        let addr = server.addr.clone();
+        let cf = async move {
+            let mut players = Vec::new();
+            println!("Sending request to {}", addr);
+            let (latency, player_count) = match client.ping(&addr, ServerEdition::Java).await {
+                Ok(status) => {
+                    let latency = status.latency as i32;
+                    match status.data {
+                        ServerData::Java(status) => {
+                            let player_count = status.players.online as i32;
+                            match status.players.sample {
+                                Some(pl) => {
+                                    for i in pl.iter() {
+                                        players.push(i.name.clone());
+                                    }
+                                    (latency, player_count)
+                                }
+                                None => (-1, -1),
                             }
                         }
-                    }
-                    ServerData::Bedrock(_) => {
-                        data.players.push(-1);
+                        ServerData::Bedrock(_) => (-1, -1),
                     }
                 }
-                data.playerlists.push(players);
-            }
-            Err(_) => {
-                data.playerlists.push(players);
-                data.latencies.push(-1);
-                data.players.push(-1);
-            }
-        }
-        data.length += 1;
+                Err(_) => (-1, -1),
+            };
+            println!("Get the result of {}", addr);
+            (latency, player_count, players)
+        };
+        server_futures.push(cf);
     }
-    data
+    let resultdataf = join_all(server_futures).await;
+    for (latency, player_count, player_list) in resultdataf {
+        data.latencies.push(latency);
+        data.players.push(player_count);
+        data.playerlists.push(player_list);
+    }
     //return (latency, players, serde_json::to_string(&pll).unwrap());
+    return data;
 }
 
 pub async fn run() {
