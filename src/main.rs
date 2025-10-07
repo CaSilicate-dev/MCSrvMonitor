@@ -103,7 +103,7 @@ fn get_record(
     length: u32,
 ) -> Result<ResponseData, String> {
     let mut resp = ResponseData::default();
-    
+
     let conn = match Connection::open(filename) {
         Ok(r) => r,
         Err(e) => {

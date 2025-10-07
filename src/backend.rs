@@ -24,11 +24,6 @@ struct Config {
     servers: Vec<SingleServerConfig>,
 }
 #[derive(Debug, Deserialize)]
-struct FrontendConfig {
-    //addr: String,
-    //port: u16,
-}
-#[derive(Debug, Deserialize)]
 struct BackendConfig {
     dbfile: String,
     interval: u32,
