@@ -130,10 +130,10 @@ async fn get_data(client: &McClient, servers: &Vec<SingleServerConfig>) -> Resul
                                     }
                                     (latency, player_count)
                                 }
-                                None => (-1, -1),
+                                None => (latency, 0),
                             }
                         }
-                        ServerData::Bedrock(_) => (-1, -1),
+                        ServerData::Bedrock(_) => (latency, 0),
                     }
                 }
                 Err(_) => (-1, -1),
