@@ -76,13 +76,12 @@ static CONFIG: Lazy<Mutex<ConfigFile>> = Lazy::new(|| {
     Mutex::new(conf)
 });
 
-fn is_valid_string(s: &str) -> bool {
-    let aaa: Regex = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
-    return aaa.is_match(s);
+fn is_valid_string(s: &str) -> Result<bool, regex::Error> {
+    let aaa: Regex = Regex::new(r"^[A-Za-z0-9_]+$")?;
+    return Ok(aaa.is_match(s));
 }
 
 fn load_config() -> ConfigFile {
-    //let contents = fs::read_to_string("config.yaml").unwrap();
     let configfile = fs::read_to_string("config.json");
     let contents = match configfile {
         Ok(r) => r,
@@ -209,9 +208,16 @@ async fn main() {
     let conf = load_config();
 
     for server in &conf.servers {
-        if !(is_valid_string(server.name.as_str())) {
+        /*if !(is_valid_string(server.name.as_str())) {
             eprint!("Invalid server name: {}", server.name);
             std::process::exit(1);
+        }*/
+        match is_valid_string(server.name.as_str()) {
+            Ok(_) => {}
+            Err(e) => {
+                eprint!("Invalid server name: {} | Error: {}", server.name, e);
+                std::process::exit(1);
+            }
         }
     }
 
@@ -236,7 +242,7 @@ async fn main() {
         backend::run().await;
     });
 
-    let _ = rocket::custom(config)
+    match rocket::custom(config)
         .attach(cors)
         .mount(
             "/",
@@ -248,5 +254,10 @@ async fn main() {
         )
         .launch()
         .await
-        .unwrap();
+    {
+        Ok(_) => {}
+        Err(e) => {
+            eprint!("Failed to start API Server: {}", e);
+        }
+    }
 }
