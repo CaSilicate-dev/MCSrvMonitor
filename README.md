@@ -9,7 +9,7 @@ A high-accuracy, high-performance, minimalistic Minecraft server status monitor.
 - [x] Efficient asynchronous polling of Minecraft server status
 - [x] Automatic storage to SQLite database
 - [x] Simple configuration and easy deployment
-- [ ] Both Java and Bedrock Edition server support
+- [x] Both Java and Bedrock Edition server support
 - [x] Multiple server monitoring support
 ## Quick Start
 
