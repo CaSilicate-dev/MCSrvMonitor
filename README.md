@@ -1,57 +1,70 @@
-English | [简体中文](docs/README.zh-CN.md)
-
 # MCSrvMonitor Backend
 
-A high-accuracy, high-performance, minimalistic Minecraft server status monitor.
+A **high-accuracy**, **high-performance**, **minimalistic** Minecraft server status monitor.
 
 ## Features
 
 - [x] Efficient asynchronous polling of Minecraft server status
-- [x] Automatic storage to SQLite database
+- [x] Automatic storage to **SQLite**
 - [x] Simple configuration and easy deployment
 - [x] Both Java and Bedrock Edition server support
 - [x] Multiple server monitoring support
+
 ## Quick Start
 
 ### Requirements
 
-- Rust 1.70+
-- SQLite3
+- **Rust** 1.70+
+- **SQLite3**
 
 ### Build & Run
 
 ```bash
 git clone https://github.com/CaSilicate-dev/MCSrvMonitor.git
 cd MCSrvMonitor
+
 # Edit config.json as needed
 cargo run --release
 ```
 
 ### Configuration
 
+- port: Port of API service
+- addr: Address of API service
+- length: Length of verbose information
+- backend: Sampling backend configuration
+    - dbfile: Database filename
+    - interval: Sampling interval (sec)
+- servers: Register your server here
+    - label: Display name
+    - name: Internal identifier
+    - addr: Server address:port
+    - type: Server type(1: Java Edition; 0: Bedrock Edition)
+
 Example `config.json`:
 
 ```json
 {
-    "port": 18650,
+    "port": 8003,
     "addr": "0.0.0.0",
     "length": 250,
     "backend": {
         "dbfile": "history.db",
-        "interval": 1
+        "interval": 15
     },
     "servers": [
         {
+            "label": "[Java] FTS427 Zn-Server",
             "name": "fts",
-            "addr": "server.fts427.top"
+            "addr": "server.fts427.top",
+            "type": 1
         },
         {
-            "name": "hypixel",
-            "addr": "mc.hypixel.net"
+            "label": "[Bedrock] FTS427 Zn-Server",
+            "name": "ftsb",
+            "addr": "server.fts427.top:19132",
+            "type": 0
         }
     ]
 }
-
 ```
-
-[Configuration Explained docs/config.md](docs/config.md)
