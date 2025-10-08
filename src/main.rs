@@ -33,10 +33,14 @@ struct SingleServerConfig {
     name: String,
     label: String,
     //addr: String,
+    #[serde(rename = "type")]
+    stype: i8,
 }
 #[derive(Serialize, Debug)]
 struct SingleServerData {
     timestamp: String,
+    #[serde(rename = "type")]
+    stype: i8,
     latency: i32,
     player: i32,
     playerlist: String,
@@ -45,6 +49,7 @@ impl Default for SingleServerData {
     fn default() -> Self {
         SingleServerData {
             timestamp: "None".to_string(),
+            stype: -1,
             latency: -1,
             player: -1,
             playerlist: "".to_string(),
@@ -58,6 +63,7 @@ struct ResponseData {
 }
 #[derive(Serialize, Debug, Default)]
 struct ResponseList {
+    typelist: Vec<i8>,
     namelist: Vec<String>,
     labellist: Vec<String>,
 }
@@ -129,9 +135,10 @@ fn get_record(
     let rows = match stmt.query_map([], |row| {
         Ok((
             row.get::<_, i64>(0)?,
-            row.get::<_, i32>(1)?,
+            row.get::<_, i8>(1)?,
             row.get::<_, i32>(2)?,
-            row.get::<_, String>(3)?,
+            row.get::<_, i32>(3)?,
+            row.get::<_, String>(4)?,
         ))
     }) {
         Ok(r) => r,
@@ -142,11 +149,12 @@ fn get_record(
 
     for row in rows {
         let mut single_resp = SingleServerData::default();
-        let (ctimestamp, clatency, cplayer, cplayerlist) = row.unwrap();
+        let (ctimestamp, stype, clatency, cplayer, cplayerlist) = row.unwrap();
         #[allow(deprecated)]
         let local_time: DateTime<Local> = Local.timestamp(ctimestamp, 0);
 
         single_resp.timestamp = local_time.to_string();
+        single_resp.stype = stype;
         single_resp.latency = clatency;
         single_resp.player = cplayer;
         single_resp.playerlist = cplayerlist.to_string();
@@ -190,6 +198,7 @@ fn index_api_list() -> Json<ResponseList> {
     let conf = load_config();
     let mut resp = ResponseList::default();
     for server in conf.servers {
+        resp.typelist.push(server.stype);
         resp.namelist.push(server.name);
         resp.labellist.push(server.label);
     }

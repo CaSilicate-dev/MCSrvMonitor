@@ -33,6 +33,8 @@ struct BackendConfig {
 struct SingleServerConfig {
     name: String,
     addr: String,
+    #[serde(rename = "type")]
+    stype: i8,
 }
 #[derive(Debug, Default)]
 struct ResultData {
@@ -68,11 +70,12 @@ fn record(ts: i64, dbfile: &String, rd: ResultData, serverlist: &[SingleServerCo
             std::process::exit(1);
         }
     };
-    for (i, _) in serverlist.iter().enumerate() {
+    for (i, c) in serverlist.iter().enumerate() {
         let _ = connection.execute(
             format!(
                 "CREATE TABLE IF NOT EXISTS {} (
                 timestamp INTEGER PRIMARY KEY,
+                type INTEGER NOT NULL,
                 latency INTEGER NOT NULL,
                 players INTEGER NOT NULL,
                 playerlist TEXT NOT NULL
@@ -85,13 +88,14 @@ fn record(ts: i64, dbfile: &String, rd: ResultData, serverlist: &[SingleServerCo
 
         let _ = connection.execute(
             format!(
-                "INSERT INTO {} (timestamp, latency, players, playerlist)
-                VALUES (?1,?2,?3,?4)",
+                "INSERT INTO {} (timestamp, type, latency, players, playerlist)
+                VALUES (?1,?2,?3,?4,?5)",
                 serverlist[i].name.as_str()
             )
             .as_str(),
             (
                 ts,
+                c.stype,
                 rd.latencies[i],
                 rd.players[i],
                 match serde_json::to_string(&rd.playerlists[i]) {
@@ -114,31 +118,68 @@ async fn get_data(client: &McClient, servers: &Vec<SingleServerConfig>) -> Resul
     for server in servers {
         let client = client.clone();
         let addr = server.addr.clone();
+        let stype = server.stype.clone();
+        //eprint!("\n\n\n{}\n\n\n",stype);
         let cf = async move {
             let mut players = Vec::new();
-            println!("Sending request to {}", addr);
-            let (latency, player_count) = match client.ping(&addr, ServerEdition::Java).await {
-                Ok(status) => {
-                    let latency = status.latency as i32;
-                    match status.data {
-                        ServerData::Java(status) => {
-                            let player_count = status.players.online as i32;
-                            match status.players.sample {
-                                Some(pl) => {
-                                    for i in pl.iter() {
-                                        players.push(i.name.clone());
+            let latency;
+            let player_count;
+            //println!("Sending request to {}", addr);
+            if stype == 1 {
+                (latency, player_count) = match client.ping(&addr, ServerEdition::Java).await {
+                    Ok(status) => {
+                        let latency = status.latency as i32;
+                        match status.data {
+                            ServerData::Java(status) => {
+                                let player_count = status.players.online as i32;
+                                match status.players.sample {
+                                    Some(pl) => {
+                                        for i in pl.iter() {
+                                            players.push(i.name.clone());
+                                        }
+                                        (latency, player_count)
                                     }
-                                    (latency, player_count)
+                                    None => (latency, 0),
                                 }
-                                None => (latency, 0),
+                            }
+                            ServerData::Bedrock(_) =>
+                            /*(latency, 0)*/
+                            {
+                                (-1, -1)
                             }
                         }
-                        ServerData::Bedrock(_) => (latency, 0),
                     }
-                }
-                Err(_) => (-1, -1),
-            };
-            println!("Get the result of {}", addr);
+                    Err(_) => (-1, -1),
+                };
+            } else if stype == 0 {
+                (latency, player_count) = match client.ping(&addr, ServerEdition::Bedrock).await {
+                    Ok(status) => {
+                        let latency = status.latency as i32;
+                        match status.data {
+                            ServerData::Java(status) => {
+                                let player_count = status.players.online as i32;
+                                match status.players.sample {
+                                    Some(pl) => {
+                                        for i in pl.iter() {
+                                            players.push(i.name.clone());
+                                        }
+                                        (latency, player_count)
+                                    }
+                                    None => (latency, 0),
+                                }
+                            }
+                            ServerData::Bedrock(status) =>
+                            /*(latency, 0)*/
+                            {
+                                (latency, status.online_players.parse().unwrap())
+                            }
+                        }
+                    }
+                    Err(_) => (-1, -1),
+                };
+            } else {
+                (latency, player_count) = (-1, -1)
+            }
             (latency, player_count, players)
         };
         server_futures.push(cf);
