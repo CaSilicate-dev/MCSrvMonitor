@@ -8,12 +8,14 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::Mutex;
 mod backend;
+use ring::hmac;
 
 #[derive(Deserialize, Clone)]
 struct ConfigFile {
     addr: String,
     port: u16,
     length: u32,
+    key: String,
     backend: BackendConfig,
     //frontend: FrontendConfig,
     servers: Vec<SingleServerConfig>,
@@ -28,7 +30,7 @@ struct BackendConfig {
     dbfile: String,
     //interval: u32,
 }
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 struct SingleServerConfig {
     name: String,
     label: String,
@@ -68,6 +70,11 @@ struct ResponseList {
     labellist: Vec<String>,
 }
 
+#[derive(Serialize, Debug, Default)]
+struct ResponseRawServerData {
+    data: String,
+}
+
 #[macro_use]
 extern crate rocket;
 
@@ -101,6 +108,11 @@ fn load_config() -> ConfigFile {
     }
 }
 
+fn write_config(configjson: &str) -> std::io::Result<()> {
+    
+    fs::write("config.json", configjson)?;
+    Ok(())
+}
 fn get_record(
     servername: String,
     filename: String,
@@ -203,6 +215,15 @@ fn index_api_list() -> Json<ResponseList> {
     }
     Json(resp)
 }
+#[get("/api/getrawserverdata")]
+fn index_api_getrawserverdata() -> Json<ResponseRawServerData> {
+    let cfg = load_config();
+    let sd = serde_json::to_string(&cfg.servers).unwrap();
+    Json(ResponseRawServerData {
+        data: sd,
+    })
+
+}
 #[rocket::main]
 async fn main() {
     let conf = load_config();
@@ -249,7 +270,8 @@ async fn main() {
             routes![
                 index_api_servers_servername,
                 index_api_serverod_servername,
-                index_api_list
+                index_api_list,
+                index_api_getrawserverdata,
             ],
         )
         .launch()
