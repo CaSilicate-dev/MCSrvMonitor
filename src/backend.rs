@@ -2,9 +2,16 @@ use chrono::Utc;
 use rocket::futures::future::join_all;
 use rusqlite::Connection;
 use rust_mc_status::{McClient, ServerData, ServerEdition};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use tokio::time::{Duration, sleep};
+
+macro_rules! file_base {
+    () => { "./data/" };
+}
+
+const CONFIG_FILE: &str = &concat!(file_base!(), "config.json");
+const DB_FILE: &str = &concat!(file_base!(), "history.db");
 
 //#[derive(Deserialize)]
 /*struct Config {
@@ -16,25 +23,63 @@ struct SingleServer {
     name: String,
     addr: String,
 }*/
-#[derive(Debug, Deserialize)]
-struct Config {
-    //port: u16,
-    //length: u32,
+#[derive(Serialize, Deserialize, Clone)]
+struct ConfigFile {
+    addr: String,
+    port: u16,
+    length: u32,
     backend: BackendConfig,
-    //frontend: FrontendConfig,
     servers: Vec<SingleServerConfig>,
 }
-#[derive(Debug, Deserialize)]
+impl Default for ConfigFile {
+    fn default() -> Self {
+        Self { addr: "127.0.0.1".to_string(), port: 9010, length: 100, backend: BackendConfig::default(), servers: vec![SingleServerConfig::default()] }
+    }
+}
+
+#[derive(Serialize, Debug, Deserialize, Clone)]
 struct BackendConfig {
-    dbfile: String,
+    //#[allow(unused)]
     interval: u32,
 }
-#[derive(Debug, Deserialize, Clone)]
+impl Default for BackendConfig {
+    fn default() -> Self {
+        Self { interval: 1 }
+    }
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
 struct SingleServerConfig {
     name: String,
+    label: String,
     addr: String,
     #[serde(rename = "type")]
     stype: i8,
+}
+impl Default for SingleServerConfig {
+    fn default() -> Self {
+        Self { name: "server".to_string(), label: "Server1".to_string(), addr: "127.0.0.1".to_string(), stype: 1 }
+    }
+}
+#[derive(Serialize, Debug)]
+#[allow(dead_code)]
+struct SingleServerData {
+    timestamp: String,
+    #[serde(rename = "type")]
+    stype: i8,
+    latency: i32,
+    player: i32,
+    playerlist: String,
+}
+impl Default for SingleServerData {
+    fn default() -> Self {
+        SingleServerData {
+            timestamp: "None".to_string(),
+            stype: -1,
+            latency: -1,
+            player: -1,
+            playerlist: "".to_string(),
+        }
+    }
 }
 #[derive(Debug, Default)]
 struct ResultData {
@@ -42,26 +87,41 @@ struct ResultData {
     players: Vec<i32>,
     playerlists: Vec<Vec<String>>,
 }
-fn load_config() -> Config {
-    //let contents = fs::read_to_string("config.yaml").unwrap();
-    let configfile = fs::read_to_string("config.json");
-    let contents = match configfile {
-        Ok(r) => r,
+fn load_config_raw() -> Result<ConfigFile, Box<dyn std::error::Error>> {
+    let configfile = fs::read_to_string(CONFIG_FILE)?;
+    let cont = serde_json::from_str(&configfile)?;
+    Ok(cont)
+}
+fn load_config() -> ConfigFile {
+    let rc = load_config_raw();
+    match rc {
+        Ok(a) => a,
         Err(e) => {
-            eprintln!("Failed to open essential config: {} ", e);
-
-            std::process::exit(1);
-        }
-    };
-    let cont = serde_json::from_str(&contents);
-    match cont {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Failed to parse essential config: {}", e);
-            std::process::exit(1);
+            eprintln!("Failed to load configfile: {}", e);
+            println!("");
+            let default_config = ConfigFile::default();
+            write_config(default_config.clone());
+            default_config
         }
     }
 }
+fn write_config_raw(configjson: &str) -> std::io::Result<()> {
+    fs::write(CONFIG_FILE, configjson)?;
+    Ok(())
+}
+fn write_config(config: ConfigFile) {
+    let json_string = match serde_json::to_string_pretty(&config) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("Failed to write config file: {}", e);
+            return;
+        }
+    };
+    write_config_raw(json_string.as_str()).unwrap_or_else(|e| {
+        eprintln!("Failed to write config file: {}", e);
+    });
+}
+
 fn record(ts: i64, dbfile: &String, rd: ResultData, serverlist: &[SingleServerConfig]) {
     let connection = match Connection::open(dbfile) {
         Ok(r) => r,
@@ -124,7 +184,7 @@ async fn get_data(client: &McClient, servers: &Vec<SingleServerConfig>) -> Resul
             let mut players = Vec::new();
             let latency;
             let player_count;
-            //println!("Sending request to {}", addr);
+            println!("Sending request to {}", addr);
             if stype == 1 {
                 (latency, player_count) = match client.ping(&addr, ServerEdition::Java).await {
                     Ok(status) => {
@@ -211,7 +271,7 @@ pub async fn run() {
             println!("{:?}", "run");
             let rd = get_data(&client, &conf.servers).await;
             println!("{:?}", rd);
-            record(ct, &conf.backend.dbfile, rd, &conf.servers);
+            record(ct, &DB_FILE.to_string(), rd, &conf.servers);
             sleep(Duration::from_millis(1000)).await;
         }
         println!("{:?}", ct);

@@ -1,42 +1,55 @@
 use chrono::{DateTime, Local, TimeZone};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rocket::{config::Config, serde::json::Json};
 use rocket_cors::CorsOptions;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::sync::Mutex;
 mod backend;
-use ring::hmac;
 
-#[derive(Deserialize, Clone)]
+macro_rules! file_base {
+    () => { "./data/" };
+}
+
+const CONFIG_FILE: &str = &concat!(file_base!(), "config.json");
+const DB_FILE: &str = &concat!(file_base!(), "history.db");
+
+#[derive(Serialize, Deserialize, Clone)]
 struct ConfigFile {
     addr: String,
     port: u16,
     length: u32,
-    key: String,
     backend: BackendConfig,
-    //frontend: FrontendConfig,
     servers: Vec<SingleServerConfig>,
 }
-/*#[derive(Debug, Deserialize, Clone)]
-struct FrontendConfig {
-    addr: String,
-    port: u16,
-}*/
-#[derive(Debug, Deserialize, Clone)]
+impl Default for ConfigFile {
+    fn default() -> Self {
+        Self { addr: "0.0.0.0".to_string(), port: 9010, length: 100, backend: BackendConfig::default(), servers: vec![SingleServerConfig::default()] }
+    }
+}
+
+#[derive(Serialize, Debug, Deserialize, Clone)]
 struct BackendConfig {
-    dbfile: String,
-    //interval: u32,
+    //#[allow(unused)]
+    interval: u32,
+}
+impl Default for BackendConfig {
+    fn default() -> Self {
+        Self { interval: 1 }
+    }
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct SingleServerConfig {
     name: String,
     label: String,
-    //addr: String,
+    addr: String,
     #[serde(rename = "type")]
     stype: i8,
+}
+impl Default for SingleServerConfig {
+    fn default() -> Self {
+        Self { name: "server".to_string(), label: "Server1".to_string(), addr: "127.0.0.1".to_string(), stype: 1 }
+    }
 }
 #[derive(Serialize, Debug)]
 struct SingleServerData {
@@ -78,40 +91,44 @@ struct ResponseRawServerData {
 #[macro_use]
 extern crate rocket;
 
-static CONFIG: Lazy<Mutex<ConfigFile>> = Lazy::new(|| {
-    let conf = load_config();
-    Mutex::new(conf)
-});
-
 fn is_valid_string(s: &str) -> Result<bool, regex::Error> {
     let aaa: Regex = Regex::new(r"^[A-Za-z0-9_]+$")?;
     return Ok(aaa.is_match(s));
 }
 
+fn load_config_raw() -> Result<ConfigFile, Box<dyn std::error::Error>> {
+    let configfile = fs::read_to_string(CONFIG_FILE)?;
+    let cont = serde_json::from_str(&configfile)?;
+    Ok(cont)
+}
 fn load_config() -> ConfigFile {
-    let configfile = fs::read_to_string("config.json");
-    let contents = match configfile {
-        Ok(r) => r,
+    let rc = load_config_raw();
+    match rc {
+        Ok(a) => a,
         Err(e) => {
-            eprintln!("Failed to open essential config: {} ", e);
-
-            std::process::exit(1);
-        }
-    };
-    let cont = serde_json::from_str(&contents);
-    match cont {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Failed to parse essential config: {}", e);
-            std::process::exit(1);
+            eprintln!("Failed to load configfile: {}", e);
+            println!("");
+            let default_config = ConfigFile::default();
+            write_config(default_config.clone());
+            default_config
         }
     }
 }
-
-fn write_config(configjson: &str) -> std::io::Result<()> {
-    
-    fs::write("config.json", configjson)?;
+fn write_config_raw(configjson: &str) -> std::io::Result<()> {
+    fs::write(CONFIG_FILE, configjson)?;
     Ok(())
+}
+fn write_config(config: ConfigFile) {
+    let json_string = match serde_json::to_string_pretty(&config) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("Failed to write config file: {}", e);
+            return;
+        }
+    };
+    write_config_raw(json_string.as_str()).unwrap_or_else(|e| {
+        eprintln!("Failed to write config file: {}", e);
+    });
 }
 fn get_record(
     servername: String,
@@ -177,8 +194,8 @@ fn get_record(
 #[get("/api/servers/<servername_in>")]
 fn index_api_servers_servername(servername_in: &str) -> Json<ResponseData> {
     let servername = servername_in.to_string();
-    let conf = CONFIG.lock().unwrap().clone();
-    match get_record(servername, conf.backend.dbfile, conf.servers, conf.length) {
+    let conf = load_config();
+    match get_record(servername, DB_FILE.to_string(), conf.servers, conf.length) {
         Ok(r) => Json(r),
         Err(e) => Json(ResponseData {
             label: "Error".to_string(),
@@ -192,8 +209,8 @@ fn index_api_servers_servername(servername_in: &str) -> Json<ResponseData> {
 #[get("/api/serverod/<servername_in>")]
 fn index_api_serverod_servername(servername_in: &str) -> Json<ResponseData> {
     let servername = servername_in.to_string();
-    let conf = CONFIG.lock().unwrap().clone();
-    match get_record(servername, conf.backend.dbfile, conf.servers, 1) {
+    let conf = load_config();
+    match get_record(servername, DB_FILE.to_string(), conf.servers, 1) {
         Ok(r) => Json(r),
         Err(e) => Json(ResponseData {
             label: "Error".to_string(),
